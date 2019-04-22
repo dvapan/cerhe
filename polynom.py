@@ -1,7 +1,26 @@
 from functools import lru_cache, reduce
+from itertools import chain
 from operator import mul
 
 import scipy as sc
+
+class Context:
+    def __init__(self):
+        self.count = 0
+        self.variables = dict()
+        self.expr = lambda x,y: 0
+
+    def assign(self,variable):
+        self.variables[variable] = self.count
+        variable.owner = self
+        self.count += 1
+
+    def index_of(self,var):
+        return self.variables.get(var)
+
+    def eval(self, x, deriv = None):
+        return self.expr(x, deriv)
+
 
 class Polynom:
     def __init__(self, count_var, degree):
@@ -10,6 +29,7 @@ class Polynom:
         self.coeff_size = len(pow_indeces(count_var, degree))
         self.coeffs = sc.zeros(self.coeff_size)
         self.var_coeffs = None
+        self.owner = None 
 
     def fx(self, x, deriv=None):
         if deriv is None:
@@ -17,8 +37,19 @@ class Polynom:
         self.var_coeffs = get_deriv_poly_var_coeffs(self.count_var, self.degree, x, deriv)
         return sc.dot(self.var_coeffs, self.coeffs)
 
-class PolynomExpression:
-    pass
+    def __call__(self, x, deriv=None):
+        return self.fx_var(x, deriv)
+
+    def fx_var(self, x, deriv = None):
+        val = self.fx(x,deriv)
+        if self.owner is None:
+            return sc.hstack((val,self.var_coeffs))
+        else:
+            size = self.coeff_size*self.owner.count
+            shift = self.coeff_size*self.owner.index_of(self)
+            lzeros = sc.zeros(shift)
+            rzeros = sc.zeros(size - self.coeff_size - shift)
+            return sc.fromiter(chain([val], lzeros, self.var_coeffs, rzeros), float)
 
 @lru_cache()
 def pow_indeces(vars_count, degree):
@@ -50,16 +81,7 @@ def fact_div(a, b):
 
 def get_deriv_poly_var_coeffs(count_var, degree, x, deriv):
     pow_i = pow_indeces(count_var, degree)
-
     def prod(pows):
         return reduce(mul, map(construct_element, x, pows, deriv), 1)
     return sc.fromiter(map(prod, pow_i), float)
-
-
-def poly_fx(count_var, degree, x, coeffs, deriv=None, shift=0):
-    if deriv is None:
-        deriv = sc.zeros_like(x)
-    var_coeffs = get_deriv_poly_var_coeffs(count_var, degree, x, deriv)
-    return var_coeffs, sc.dot(var_coeffs, coeffs)
-
 
