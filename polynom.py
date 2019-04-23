@@ -77,7 +77,11 @@ def construct_element(x, pow_i, num_deriv):
 
 @lru_cache()
 def fact_div(a, b):
-    return reduce(mul, range(b+1, a+1), 1)
+    return sc.multiply.reduce(sc.arange(b+1, a+1))
+
+vfact_div = sc.vectorize(fact_div)
+
+
 
 def get_deriv_poly_var_coeffs(count_var, degree, x, deriv):
     pow_i = pow_indeces(count_var, degree)
