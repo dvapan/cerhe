@@ -49,3 +49,9 @@ class TestContextPolynoms(unittest.TestCase):
         self.context.expr = expr
 
         sct.assert_equal(expr([0,0],[0,0]), self.context.eval([0,0],[0,0]))
+
+        self.poly1.coeffs = sc.arange(3,self.poly1.coeff_size + 3)
+        self.poly2.coeffs = sc.arange(1,self.poly2.coeff_size + 1)
+
+        sct.assert_equal(expr([0,0],[0,0]), self.context.eval([0,0],[0,0]))
+
