@@ -29,12 +29,14 @@ class Polynom:
         self.coeff_size = len(pow_indeces(count_var, degree))
         self.coeffs = sc.zeros(self.coeff_size)
         self.var_coeffs = None
-        self.owner = None 
+        self.owner = None
 
     def fx(self, x, deriv=None):
         if deriv is None:
-            deriv = sc.zeros_like(x)
+            deriv = sc.zeros_like(x[0])
         self.var_coeffs = get_deriv_poly_var_coeffs(self.count_var, self.degree, x, deriv)
+        print(x,self.var_coeffs)
+        print(self.coeffs)
         return sc.dot(self.var_coeffs, self.coeffs)
 
     def __call__(self, x, deriv=None):
@@ -70,10 +72,12 @@ def nsum(x):
 
 def construct_element(x, pow_i, num_deriv):
     dpow_i = pow_i - num_deriv
-    if dpow_i < 0:
-        return 0
-    coeff = fact_div(pow_i, dpow_i)
+    dpow_i = sc.piecewise(dpow_i,
+                          [dpow_i>=0, dpow_i < 0],
+                          [lambda x: x, 0])
+    coeff = vfact_div(pow_i, dpow_i)
     return coeff * x**dpow_i
+
 
 @lru_cache()
 def fact_div(a, b):
@@ -85,7 +89,5 @@ vfact_div = sc.vectorize(fact_div)
 
 def get_deriv_poly_var_coeffs(count_var, degree, x, deriv):
     pow_i = pow_indeces(count_var, degree)
-    def prod(pows):
-        return reduce(mul, map(construct_element, x, pows, deriv), 1)
-    return sc.fromiter(map(prod, pow_i), float)
+    return sc.array([sc.multiply.reduce(construct_element(xi,pow_i, deriv)) for xi in x])
 

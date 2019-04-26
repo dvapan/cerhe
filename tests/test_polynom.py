@@ -10,12 +10,14 @@ class TestPolynom(unittest.TestCase):
 
     def test_fx_2degree(self):
         test_data = {}
-        test_data[0,0] = 1
-        test_data[1,0] = 11
-        test_data[0,1] = 6
-        test_data[1,1] = 21
-        for x,fx in test_data.items():
-            self.assertEqual(fx,self.poly.fx(x))
+        x = sc.array([[0,0],
+                      [0,1],
+                      [1,0],
+                      [1,1]])
+        print(self.poly.fx(x))
+        # print(sc.array(test_data.items()))
+        # for x,fx in test_data.items():
+        #     self.assertEqual(fx,self.poly.fx(sc.array([x])))
 
     def test_fx_var_coeffs(self):
         test_data = {}
