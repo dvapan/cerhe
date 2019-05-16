@@ -32,3 +32,25 @@ class TestDBalance(unittest.TestCase):
         r = db.g2c(x,self.cer,self.gas)
         self.assertEqual(self.cer.coeff_size+self.gas.coeff_size+1, len(r[0]))
         self.assertEqual(len(x)*2,len(r))
+
+class TestDiscrepancyCount(unittest.TestCase):
+    def test_diff_val(self):
+        xreg, treg = 3, 3
+        self.cer = Polynom(2,3)
+        self.gas = Polynom(2,3)
+
+        context = Context()
+        context.assign(self.gas)
+        context.assign(self.cer)
+
+        X = sc.linspace(0, 1, 50)
+        T = sc.linspace(0, 1, 50)
+        X_part = sc.split(X, (17, 33))
+        T_part = sc.split(T, (17, 33))
+        vert_bounds = sc.linspace(0, 1, xreg+1)
+        hori_bounds = sc.linspace(0, 1, treg+1)
+
+        xt_part = [(x, t) for x in X_part[0] for t in T_part[0]]
+        self.lx = sc.full_like(T_part[0], vert_bounds[0])
+        self.lb = sc.vstack((self.lx, T_part[0])).transpose()
+        self.fail("not implemented")
