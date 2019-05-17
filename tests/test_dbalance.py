@@ -24,14 +24,18 @@ class TestDBalance(unittest.TestCase):
     def test_g2c(self):
         x = self.xt_part
         r = db.g2c(x,self.cer,self.gas)
+        testr = sc.loadtxt("tests/g2c.dat")
         self.assertEqual(self.cer.coeff_size+self.gas.coeff_size+1, len(r[0]))
         self.assertEqual(len(x)*2,len(r))
+        sct.assert_equal(testr, r)
 
-    def test_a2c(self):
+    def test_c2a(self):
         x = self.xt_part
-        r = db.g2c(x,self.cer,self.gas)
+        r = db.c2a(x,self.cer,self.gas)
+        testr = sc.loadtxt("tests/c2a.dat")
         self.assertEqual(self.cer.coeff_size+self.gas.coeff_size+1, len(r[0]))
         self.assertEqual(len(x)*2,len(r))
+        sct.assert_equal(testr, r)
 
 class TestDiscrepancyCount(unittest.TestCase):
     def test_diff_val(self):
@@ -51,6 +55,8 @@ class TestDiscrepancyCount(unittest.TestCase):
         hori_bounds = sc.linspace(0, 1, treg+1)
 
         xt_part = [(x, t) for x in X_part[0] for t in T_part[0]]
-        self.lx = sc.full_like(T_part[0], vert_bounds[0])
-        self.lb = sc.vstack((self.lx, T_part[0])).transpose()
-        self.fail("not implemented")
+        lx = sc.full_like(T_part[0], vert_bounds[0])
+        self.lb = sc.vstack((lx, T_part[0])).transpose()
+        tgl = db.delta_polynom_val(self.lb, self.gas,1)
+        testr = sc.loadtxt("tests/lbound.dat")
+        sct.assert_equal(testr, tgl)
