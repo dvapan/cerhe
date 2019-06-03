@@ -25,18 +25,20 @@ coef["k3"] = coef["ck"]*coef["qmacyd"]
 
 
 def g2c(x, tc, tg):
-    de_bln_1 = (tg(x)- tc(x))*coef["k1"] + coef["k2"]*(tg(x,[1,0])*coef["wg"] +
-                                                        tg(x,[0,1]))
-    de_bln_2 = (tg(x) - tc(x))*coef["k1"] - coef["k3"]*tc(x,[0,1])
+    de_bln_1 = (tg(x) - tc(x))*coef["k1"] + coef["k2"]*(tg(x, [1, 0])*coef["wg"] +
+                                                        tg(x, [0, 1]))
+    de_bln_2 = (tg(x) - tc(x))*coef["k1"] - coef["k3"]*tc(x, [0, 1])
     return sc.vstack((de_bln_1, de_bln_2))
+
 
 def c2a(x, tc, tg):
-    de_bln_1 = (tg(x)- tc(x))*coef["k1"] - coef["k2"]*(tg(x,[1,0])*coef["wg"] +
-                                                        tg(x,[0,1]))
-    de_bln_2 = (tg(x) - tc(x))*coef["k1"] - coef["k3"]*tc(x,[0,1])
+    de_bln_1 = (tg(x) - tc(x))*coef["k1"] - coef["k2"]*(tg(x, [1, 0])*coef["wg"] +
+                                                        tg(x, [0, 1]))
+    de_bln_2 = (tg(x) - tc(x))*coef["k1"] - coef["k3"]*tc(x, [0, 1])
     return sc.vstack((de_bln_1, de_bln_2))
 
-def delta_polynom_val(x, polynom, vals, deriv = None):
+
+def delta_polynom_val(x, polynom, vals, deriv=None):
     t = polynom(x, deriv)
     t[:, 0] = t[:, 0] - vals
     return t
