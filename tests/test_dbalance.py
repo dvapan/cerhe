@@ -84,19 +84,14 @@ def solve_linear(prb, lp_dim, xdop):
     s.dual()
     outx = s.primalVariableSolution['x']
     outx_dual = s.dualConstraintSolution
-    sc.savetxt("xd.dat",s.dualConstraintSolution['R_4'])
     return outx, outx_dual
 
 def approximate(X, polynoms, bound_coords, bound_vals, derivs, xdop):
     prb_chain = []
-    count_var = polynoms[0].count_var
-    poly_cnt = len(polynoms)
     xt_part = [(x, t) for x in X[0] for t in X[1]]
     res = db.g2c(xt_part, polynoms[1], polynoms[0])
     prb_chain.append(res)
     prb_chain.append(-res)
-    # bound_coords = polynoms_bounds[:, :count_var]
-    # bound_vals = polynoms_bounds[:, count_var:]
     for poly_idx in range(len(polynoms)):
         for val_idx in range(len(bound_vals[poly_idx])):
             poly_discr = db.delta_polynom_val(
@@ -107,13 +102,7 @@ def approximate(X, polynoms, bound_coords, bound_vals, derivs, xdop):
             prb_chain.append(poly_discr)
             prb_chain.append(-poly_discr)
     lp_dim = sum([x.coeff_size for x in polynoms]) + 1
-    # xdop_ar = sc.zeros(lp_dim)
-    # xdop_ar[0] = xdop
-    # prb1 = sc.vstack(prb_chain)
-    # prb = xdop_ar + prb1
     prb = sc.vstack(prb_chain)
-    sc.savetxt("out",prb)
-
     x,xd = solve_linear(prb,lp_dim, xdop)
 
     print(x)
@@ -136,7 +125,7 @@ def boundary_coords(x):
 class TestApproximate(unittest.TestCase):
     def test_boundary_vals_creation(self):
         xreg, treg = 3, 3
-        xdop = 1
+        xdop = 5
         self.cer = Polynom(2, 3)
         self.gas = Polynom(2, 3)
 
