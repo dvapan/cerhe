@@ -180,10 +180,10 @@ class TestApproximate(unittest.TestCase):
         bound_vals = [[gas, dxgas, dtgas],[cer,dtcer]]
 
         derivs = [[[0,0],[1,0],[0,1]],[[0,0],[0,1]]]
-        approximate((X_part[i],T_part[j]),
+        approximate((X_part[i], T_part[j]),
                     (self.gas, self.cer),
                     coords, bound_vals, derivs,
-                    xdop) 
+                    xdop)
 
     def test_boundary_approximation(self):
         xreg, treg = 3, 3
