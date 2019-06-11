@@ -8,15 +8,21 @@ from cylp.py.modeling.CyLPModel import CyLPArray
 
 import dbalance as db
 
+def make_gas_cer_pair(count_var, degree, gas_coeffs=None, cer_coeffs=None):
+    cer = Polynom(count_var, degree)
+    gas = Polynom(count_var, degree)
+    if gas_coeffs is not None:
+        gas.coeffs = gas_coeffs
+    if cer_coeffs is not None:
+        cer.coeffs = cer_coeffs
+    context_test = Context()
+    context_test.assign(gas)
+    context_test.assign(cer)
+    return gas, cer
+
 class TestDBalance(unittest.TestCase):
     def setUp(self):
-        self.cer = Polynom(2,3)
-        self.gas = Polynom(2,3)
-
-        context = Context()
-        context.assign(self.gas)
-        context.assign(self.cer)
-
+        self.gas, self.cer = make_gas_cer_pair(2,3)
         X = sc.linspace(0, 1, 50)
         T = sc.linspace(0, 1, 50)
         X_part = sc.split(X, (17, 33))
@@ -43,12 +49,8 @@ class TestDiscrepancyCount(unittest.TestCase):
 
     def setUp(self):
         xreg, treg = 3, 3
-        self.cer = Polynom(2,3)
-        self.gas = Polynom(2,3)
 
-        context = Context()
-        context.assign(self.gas)
-        context.assign(self.cer)
+        self.gas, self.cer = make_gas_cer_pair(2,3)
 
         X = sc.linspace(0, 1, 50)
         T = sc.linspace(0, 1, 50)
@@ -85,6 +87,7 @@ def solve_linear(prb, lp_dim, xdop):
     outx = s.primalVariableSolution['x']
     outx_dual = s.dualConstraintSolution
     return outx, outx_dual
+
 
 def approximate(X, polynoms, bound_coords, bound_vals, derivs, xdop):
     prb_chain = []
@@ -126,12 +129,7 @@ class TestApproximate(unittest.TestCase):
     def test_boundary_vals_creation(self):
         xreg, treg = 3, 3
         xdop = 5
-        self.cer = Polynom(2, 3)
-        self.gas = Polynom(2, 3)
-
-        context = Context()
-        context.assign(self.gas)
-        context.assign(self.cer)
+        self.gas, self.cer = make_gas_cer_pair(2, 3)
 
         X = sc.linspace(0, 1, 50)
         T = sc.linspace(0, 1, 50)
@@ -141,14 +139,7 @@ class TestApproximate(unittest.TestCase):
         at, atr = sc.array_split(sc.loadtxt("tests/rain33.dat"), 2)
         at = at.reshape((3, 3, 2, 10))
         atr = atr.reshape((3, 3, 2, 10))
-        tcer = Polynom(2, 3)
-        tgas = Polynom(2, 3)
-        tgas.coeffs = at[0][0][0]
-        tcer.coeffs = at[0][0][1]
-        context_test = Context()
-        context_test.assign(tgas)
-        context_test.assign(tcer)
-
+        tgas, tcer = make_gas_cer_pair(2, 3, at[0][0][0], at[0][0][1])
         i = 0
         j = 0
 
@@ -165,12 +156,7 @@ class TestApproximate(unittest.TestCase):
     def test_approximation(self):
         xreg, treg = 3, 3
         xdop = 1
-        self.cer = Polynom(2, 3)
-        self.gas = Polynom(2, 3)
-
-        context = Context()
-        context.assign(self.gas)
-        context.assign(self.cer)
+        self.gas, self.cer = make_gas_cer_pair(2,3)
 
         X = sc.linspace(0, 1, 50)
         T = sc.linspace(0, 1, 50)
@@ -180,13 +166,7 @@ class TestApproximate(unittest.TestCase):
         at, atr = sc.array_split(sc.loadtxt("tests/rain33.dat"), 2)
         at = at.reshape((3, 3, 2, 10))
         atr = atr.reshape((3, 3, 2, 10))
-        tcer = Polynom(2, 3)
-        tgas = Polynom(2, 3)
-        tgas.coeffs = at[0][0][0]
-        tcer.coeffs = at[0][0][1]
-        context_test = Context()
-        context_test.assign(tgas)
-        context_test.assign(tcer)
+        tgas, tcer = make_gas_cer_pair(2, 3, at[0][0][0], at[0][0][1])
 
         i = 0
         j = 0
@@ -204,3 +184,54 @@ class TestApproximate(unittest.TestCase):
                     (self.gas, self.cer),
                     coords, bound_vals, derivs,
                     xdop) 
+
+    def test_boundary_approximation(self):
+        xreg, treg = 3, 3
+        xdop = 1
+
+        X = sc.linspace(0, 1, 50)
+        T = sc.linspace(0, 1, 50)
+        X_part = sc.split(X, (17, 33))
+        T_part = sc.split(T, (17, 33))
+
+        at, atr = sc.array_split(sc.loadtxt("tests/rain33.dat"), 2)
+        at = at.reshape((3, 3, 2, 10))
+        atr = atr.reshape((3, 3, 2, 10))
+        tgas1, tcer1 = make_gas_cer_pair(2, 3, at[0][0][0], at[0][0][1])
+        tgas2, tcer2 = make_gas_cer_pair(2, 3, at[1][0][0], at[1][0][1])
+
+        rx = sc.full_like(T_part[0], X_part[0][-1])
+        first_reg_rb = sc.vstack((rx, T_part[0])).transpose()
+        lx = sc.full_like(T_part[0], X_part[1][0])
+        secnd_reg_lb = sc.vstack((lx, T_part[0])).transpose()
+        lx2 = sc.full_like(T_part[0], X_part[1][1])
+        secnd_reg_lb2 = sc.vstack((lx2, T_part[0])).transpose()
+
+        avg_vals = (tgas1(first_reg_rb)[:,0] + tgas2(secnd_reg_lb)[:,0])/2
+
+        bnd = Polynom(1, 3)
+        lp_dim = bnd.coeff_size + 1
+        coords = sc.arange(len(avg_vals))
+        prb_chain = []
+        poly_discr = db.delta_polynom_val(
+            coords,
+            bnd,
+            avg_vals)
+        prb_chain.append(poly_discr)
+        prb_chain.append(-poly_discr)
+
+        prb = sc.vstack(prb_chain)
+        x,xd = solve_linear(prb,lp_dim, xdop)
+
+        bnd.coeffs = x[:-1]
+        print(x)
+        print(xd)
+        print("------")
+        print (bnd(coords)[:,0])
+        print (avg_vals)
+
+
+TGZ = 1800
+TBZ = 778.17
+def fromTET(TET, tgaz=TGZ, tair=TBZ):
+    return tair + TET*(tgaz-tair)
