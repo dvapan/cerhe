@@ -1,24 +1,22 @@
-from functools import lru_cache, reduce
-from itertools import chain
-from operator import mul
-
+from functools import lru_cache
 import scipy as sc
+
 
 class Context:
     def __init__(self):
         self.count = 0
         self.variables = dict()
-        self.expr = lambda x,y: 0
+        self.expr = lambda x, y: 0
 
-    def assign(self,variable):
+    def assign(self, variable):
         self.variables[variable] = self.count
         variable.owner = self
         self.count += 1
 
-    def index_of(self,var):
+    def index_of(self, var):
         return self.variables.get(var)
 
-    def eval(self, x, deriv = None):
+    def eval(self, x, deriv=None):
         return self.expr(x, deriv)
 
 
@@ -34,16 +32,17 @@ class Polynom:
     def fx(self, x, deriv=None):
         if deriv is None:
             deriv = sc.zeros_like(x[0])
-        self.var_coeffs = get_deriv_poly_var_coeffs(self.count_var, self.degree, x, deriv)
+        self.var_coeffs = get_deriv_poly_var_coeffs(self.count_var,
+                                                    self.degree, x, deriv)
         return sc.dot(self.var_coeffs, self.coeffs)
 
     def __call__(self, x, deriv=None):
         return self.fx_var(x, deriv)
 
-    def fx_var(self, x, deriv = None):
-        val = self.fx(x,deriv).reshape(-1,1)
+    def fx_var(self, x, deriv=None):
+        val = self.fx(x, deriv).reshape(-1, 1)
         if self.owner is None:
-            return sc.hstack([val,self.var_coeffs])
+            return sc.hstack([val, self.var_coeffs])
         else:
             count_exprs = len(val)
             size = self.coeff_size*self.owner.count
@@ -51,6 +50,7 @@ class Polynom:
             lzeros = sc.zeros((count_exprs, shift))
             rzeros = sc.zeros((count_exprs, size - self.coeff_size - shift))
             return sc.hstack([val, lzeros, self.var_coeffs, rzeros])
+
 
 @lru_cache()
 def pow_indeces(vars_count, degree):
@@ -73,7 +73,7 @@ def construct_element(x, pow_i, num_deriv):
     dpow_i = pow_i - num_deriv
     filtered = dpow_i
     dpow_i = sc.piecewise(dpow_i,
-                          [dpow_i>=0, dpow_i < 0],
+                          [dpow_i >= 0, dpow_i < 0],
                           [lambda x: x, 0])
     coeff = vfact_div(pow_i, filtered)
     return coeff * x**dpow_i
@@ -86,11 +86,12 @@ def fact_div(a, b):
     else:
         return 0
 
-vfact_div = sc.vectorize(fact_div)
 
+vfact_div = sc.vectorize(fact_div)
 
 
 def get_deriv_poly_var_coeffs(count_var, degree, x, deriv):
     pow_i = pow_indeces(count_var, degree)
-    return sc.array([sc.multiply.reduce(construct_element(xi,pow_i, deriv).transpose()) for xi in x])
-
+    return sc.array(
+        [sc.multiply.reduce(construct_element(xi, pow_i, deriv).transpose())
+         for xi in x])
