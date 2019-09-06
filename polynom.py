@@ -24,7 +24,7 @@ class Polynom:
     def __init__(self, count_var, degree):
         self.count_var = count_var
         self.degree = degree
-        self.coeff_size = len(pow_indeces(count_var, degree))
+        self.coeff_size = len(pow_indices(count_var, degree))
         self.coeffs = sc.zeros(self.coeff_size)
         self.var_coeffs = None
         self.owner = None
@@ -53,8 +53,8 @@ class Polynom:
 
 
 @lru_cache()
-def pow_indeces(vars_count, degree):
-    """ Function returns power indeces for variables in polynom.
+def pow_indices(vars_count, degree):
+    """ Function returns power indices for variables in polynom.
     """
     max_num = degree * 10**(vars_count - 1)
     nums = filter(lambda x: nsum(x) <= degree, range(max_num + 1))
@@ -91,7 +91,7 @@ vfact_div = sc.vectorize(fact_div)
 
 
 def get_deriv_poly_var_coeffs(count_var, degree, x, deriv):
-    pow_i = pow_indeces(count_var, degree)
+    pow_i = pow_indices(count_var, degree)
     return sc.array(
         [sc.multiply.reduce(construct_element(xi, pow_i, deriv).transpose())
          for xi in x])
