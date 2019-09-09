@@ -51,6 +51,7 @@ def approximate_equation_polynom(X, equation, polynoms, bound_coords, bound_vals
     res = equation(xt_part, polynoms[1], polynoms[0])
     prb_chain.append(res)
     prb_chain.append(-res)
+    count_boundares = 0
     for poly_idx in range(len(polynoms)):
         for val_idx in range(len(bound_vals[poly_idx])):
             poly_discr = delta_polynom_val(
@@ -60,10 +61,20 @@ def approximate_equation_polynom(X, equation, polynoms, bound_coords, bound_vals
                 derivs[poly_idx][val_idx])
             prb_chain.append(poly_discr)
             prb_chain.append(-poly_discr)
+            count_boundares += 1
     lp_dim = sum([x.coeff_size for x in polynoms]) + 1
     prb = sc.vstack(prb_chain)
     x, xd = solve_linear(prb, lp_dim, xdop)
-    return x, list(xd.values())[0]
+    xd = sc.array(list(xd.values())[0])
+    xd = xd[len(res)*2:]
+    out = list(range(len(polynoms)))
+    h = int(len(xd)/count_boundares)
+    i = 0
+    for poly_idx in range(len(polynoms)):
+        out[poly_idx] = list(range(len(bound_vals[poly_idx])))
+        for val_idx in range(len(bound_vals[poly_idx])):
+            out[poly_idx][val_idx] = xd[i*h:(i+1)*h]
+    return x, out
 
 
 def left_boundary_coords(x):

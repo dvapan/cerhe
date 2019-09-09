@@ -118,6 +118,8 @@ class TestApproximate(unittest.TestCase):
                                              (self.gas, self.cer),
                                              coords, bound_vals, derivs,
                                              xdop)
+        print(xd)
+
         xt_part = [(x, t) for x in self.X_part[i] for t in self.T_part[j]]
         rgas, _ = make_gas_cer_pair(2, 3, x[0:10], x[10:20])
         sct.assert_almost_equal(tgas(xt_part)[:, 0], rgas(xt_part)[:, 0],4)
