@@ -3,7 +3,7 @@ import scipy as sc
 import numpy.testing as sct
 from polynom import Polynom
 from polynom import Context
-from utils import boundary_coords, approximate
+from utils import boundary_coords, approximate_equation_polynom
 import dbalance as db
 import utils as ut
 
@@ -69,22 +69,25 @@ class TestDiscrepancyCount(unittest.TestCase):
 
 
 class TestApproximate(unittest.TestCase):
-    def test_boundary_vals_creation(self):
+    def setUp(self):
         self.gas, self.cer = make_gas_cer_pair(2, 3)
 
         X = sc.linspace(0, 1, 50)
         T = sc.linspace(0, 1, 50)
-        X_part = sc.split(X, (17, 33))
-        T_part = sc.split(T, (17, 33))
+        self.X_part = sc.split(X, (17, 33))
+        self.T_part = sc.split(T, (17, 33))
 
         at, atr = sc.array_split(sc.loadtxt("tests/rain33.dat"), 2)
-        at = at.reshape((3, 3, 2, 10))
-        atr = atr.reshape((3, 3, 2, 10))
-        tgas, tcer = make_gas_cer_pair(2, 3, at[0][0][0], at[0][0][1])
+        self.at = at.reshape((3, 3, 2, 10))
+        self.atr = atr.reshape((3, 3, 2, 10))
+
+    def test_boundary_vals_creation(self):
+
+        tgas, tcer = make_gas_cer_pair(2, 3, self.at[0][0][0], self.at[0][0][1])
         i = 0
         j = 0
 
-        coords = boundary_coords((X_part[i], T_part[j]))
+        coords = boundary_coords((self.X_part[i], self.T_part[j]))
 
         r = tgas(coords)[:, 0]
         testr = sc.loadtxt("tests/gas_boundary_vals.dat")
@@ -93,25 +96,15 @@ class TestApproximate(unittest.TestCase):
         testr = sc.loadtxt("tests/cer_boundary_vals.dat")
         sct.assert_equal(testr, r)
 
-    def approximation_onereg(self):
-        xreg, treg = 3, 3
+    def test_approximation_onereg(self):
         xdop = 1
-        self.gas, self.cer = make_gas_cer_pair(2, 3)
 
-        X = sc.linspace(0, 1, 50)
-        T = sc.linspace(0, 1, 50)
-        X_part = sc.split(X, (17, 33))
-        T_part = sc.split(T, (17, 33))
-
-        at, atr = sc.array_split(sc.loadtxt("tests/rain33.dat"), 2)
-        at = at.reshape((3, 3, 2, 10))
-        atr = atr.reshape((3, 3, 2, 10))
-        tgas, tcer = make_gas_cer_pair(2, 3, at[0][0][0], at[0][0][1])
+        tgas, tcer = make_gas_cer_pair(2, 3, self.at[0][0][0], self.at[0][0][1])
 
         i = 0
         j = 0
 
-        coords = boundary_coords((X_part[i], T_part[j]))
+        coords = boundary_coords((self.X_part[i], self.T_part[j]))
         gas = tgas(coords)[:, 0]
         dxgas = tgas(coords, [1, 0])[:, 0]
         dtgas = tgas(coords, [0, 1])[:, 0]
@@ -120,18 +113,14 @@ class TestApproximate(unittest.TestCase):
         bound_vals = [[gas, dxgas, dtgas], [cer, dtcer]]
         derivs = [[[0, 0], [1, 0], [0, 1]],
                   [[0, 0], [0, 1]]]
-        x, xd = approximate((X_part[i], T_part[j]),
-                            db.g2c,
-                            (self.gas, self.cer),
-                            coords, bound_vals, derivs,
-                            xdop)
-        print(x, xd)
-        x, xd = approximate((X_part[i], T_part[j]),
-                            db.c2a,
-                            (self.gas, self.cer),
-                            coords, bound_vals, derivs,
-                            xdop)
-        print(x, xd)
+        x, xd = approximate_equation_polynom((self.X_part[i], self.T_part[j]),
+                                             db.g2c,
+                                             (self.gas, self.cer),
+                                             coords, bound_vals, derivs,
+                                             xdop)
+        xt_part = [(x, t) for x in self.X_part[i] for t in self.T_part[j]]
+        gas,cer = make_gas_cer_pair(2, 3, x[0:10], x[10:20])
+        sct.assert_almost_equal(tgas(xt_part)[:, 0], gas(xt_part)[:, 0],4)
 
     def test_boundary_approximation(self):
         xdop = 1
@@ -147,28 +136,15 @@ class TestApproximate(unittest.TestCase):
         tgas1, tcer1 = make_gas_cer_pair(2, 3, at[0][0][0], at[0][0][1])
         tgas2, tcer2 = make_gas_cer_pair(2, 3, at[1][0][0], at[1][0][1])
 
-        rx = sc.full_like(T_part[0], X_part[0][-1])
-        first_reg_rb = sc.vstack((rx, T_part[0])).transpose()
-        lx = sc.full_like(T_part[0], X_part[1][0])
-        secnd_reg_lb = sc.vstack((lx, T_part[0])).transpose()
+        first_reg_rb = ut.right_boundary_coords((X_part[0],T_part[0]))
+        secnd_reg_lb = ut.left_boundary_coords((X_part[1],T_part[0]))
 
         avg_vals = (tgas1(first_reg_rb)[:, 0] + tgas2(secnd_reg_lb)[:, 0])/2
 
         bnd = Polynom(1, 3)
-        lp_dim = bnd.coeff_size + 1
-        coords = sc.arange(len(avg_vals))
-        prb_chain = []
-        poly_discr = ut.delta_polynom_val(
-            coords,
-            bnd,
-            avg_vals)
-        prb_chain.append(poly_discr)
-        prb_chain.append(-poly_discr)
-
-        prb = sc.vstack(prb_chain)
-        x, xd = ut.solve_linear(prb, lp_dim, xdop)
-
+        x, xd = ut.approximate_bound_polynom(bnd,avg_vals,xdop)
         bnd.coeffs = x[:-1]
+        coords = sc.arange(len(avg_vals))
         sct.assert_almost_equal(bnd(coords)[:, 0], avg_vals)
 
 

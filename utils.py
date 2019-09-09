@@ -29,8 +29,23 @@ def delta_polynom_val(x, polynom, vals, deriv=None):
     t[:, 0] = t[:, 0] - vals
     return t
 
+def approximate_bound_polynom(polynom, vals,xdop):
+    lp_dim = polynom.coeff_size + 1
+    coords = sc.arange(len(vals))
+    prb_chain = []
+    poly_discr = delta_polynom_val(
+        coords,
+        polynom,
+        vals)
+    prb_chain.append(poly_discr)
+    prb_chain.append(-poly_discr)
 
-def approximate(X, equation, polynoms, bound_coords, bound_vals, derivs, xdop):
+    prb = sc.vstack(prb_chain)
+    x, xd = solve_linear(prb, lp_dim, xdop)
+    return x, list(xd.values())[0]
+
+
+def approximate_equation_polynom(X, equation, polynoms, bound_coords, bound_vals, derivs, xdop):
     prb_chain = []
     xt_part = [(x, t) for x in X[0] for t in X[1]]
     res = equation(xt_part, polynoms[1], polynoms[0])
@@ -51,15 +66,31 @@ def approximate(X, equation, polynoms, bound_coords, bound_vals, derivs, xdop):
     return x, list(xd.values())[0]
 
 
-def boundary_coords(x):
-    coords_chain = []
+def left_boundary_coords(x):
     lx = sc.full_like(x[1], x[0][0])
-    coords_chain.append(sc.vstack((lx, x[1])).transpose())
-    rx = sc.full_like(x[1], x[0][-1])
-    coords_chain.append(sc.vstack((rx, x[1])).transpose())
-    ut = sc.full_like(x[0], x[1][0])
-    coords_chain.append(sc.vstack((x[0], ut)).transpose())
-    bt = sc.full_like(x[0], x[1][-1])
-    coords_chain.append(sc.vstack((x[0], bt)).transpose())
+    return sc.vstack((lx, x[1])).transpose()
 
+
+def right_boundary_coords(x):
+    rx = sc.full_like(x[1], x[0][-1])
+    return sc.vstack((rx, x[1])).transpose()
+
+
+def top_boundary_coords(x):
+    ut = sc.full_like(x[0], x[1][0])
+    return sc.vstack((x[0], ut)).transpose()
+
+
+def bottom_boundary_coords(x):
+    bt = sc.full_like(x[0], x[1][-1])
+    return sc.vstack((x[0], bt)).transpose()
+
+
+def boundary_coords(x):
+    coords_chain = [
+        left_boundary_coords(x),
+        right_boundary_coords(x),
+        top_boundary_coords(x),
+        bottom_boundary_coords(x)
+    ]
     return sc.vstack(coords_chain)
