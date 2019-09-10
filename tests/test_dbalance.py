@@ -113,12 +113,21 @@ class TestApproximate(unittest.TestCase):
         bound_vals = [[gas, dxgas, dtgas], [cer, dtcer]]
         derivs = [[[0, 0], [1, 0], [0, 1]],
                   [[0, 0], [0, 1]]]
-        x, xd = approximate_equation_polynom((self.X_part[i], self.T_part[j]),
+        x, xd, unparsed = approximate_equation_polynom((self.X_part[i], self.T_part[j]),
                                              db.g2c,
                                              (self.gas, self.cer),
                                              coords, bound_vals, derivs,
                                              xdop)
-        print(xd)
+        dual_sol_bnds = dict()
+        dual_sol_bnds['gas'] = ut.parse_bounds((self.X_part[i], self.T_part[j]), xd[0][0])
+        dual_sol_bnds['dxgas'] = xd[0][1]
+        dual_sol_bnds['dtgas'] = xd[0][2]
+        dual_sol_bnds['cer'] = ut.parse_bounds((self.X_part[i], self.T_part[j]), xd[1][0])
+        dual_sol_bnds['dtcer'] = xd[1][1]
+        sc.set_printoptions(precision=3, linewidth=110)
+        import pprint
+        pprint.pprint(dual_sol_bnds['gas'])
+        pprint.pprint(dual_sol_bnds['cer'])
 
         xt_part = [(x, t) for x in self.X_part[i] for t in self.T_part[j]]
         rgas, _ = make_gas_cer_pair(2, 3, x[0:10], x[10:20])

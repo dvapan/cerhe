@@ -106,3 +106,6 @@ venv.bak/
 # Temporary files
 out
 *.dat
+
+test1
+testout

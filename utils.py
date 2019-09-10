@@ -3,7 +3,15 @@ import scipy as sc
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 
-
+def solve_linear_test(prb, lp_dim, xdop, x):
+    xdop_ar = sc.zeros(lp_dim)
+    xdop_ar[0] = xdop
+    prb = xdop_ar + prb
+    A = prb[:, 1:]
+    A = sc.hstack((A, sc.ones((len(A), 1))))
+    b = prb[:, 0]
+    b = xdop - b
+    return A.dot(x) - b
 def solve_linear(prb, lp_dim, xdop):
     s = CyClpSimplex()
     x = s.addVariable('x', lp_dim)
@@ -21,6 +29,7 @@ def solve_linear(prb, lp_dim, xdop):
     s.dual()
     outx = s.primalVariableSolution['x']
     outx_dual = s.dualConstraintSolution
+    sc.savetxt('test1',outx_dual['R_1'])
     return outx, outx_dual
 
 
@@ -66,7 +75,9 @@ def approximate_equation_polynom(X, equation, polynoms, bound_coords, bound_vals
     prb = sc.vstack(prb_chain)
     x, xd = solve_linear(prb, lp_dim, xdop)
     xd = sc.array(list(xd.values())[0])
+    # xd = solve_linear_test(prb,lp_dim,xdop,x)
     xd = xd[len(res)*2:]
+    unparsed = xd
     out = list(range(len(polynoms)))
     h = int(len(xd)/count_boundares)
     i = 0
@@ -74,7 +85,7 @@ def approximate_equation_polynom(X, equation, polynoms, bound_coords, bound_vals
         out[poly_idx] = list(range(len(bound_vals[poly_idx])))
         for val_idx in range(len(bound_vals[poly_idx])):
             out[poly_idx][val_idx] = xd[i*h:(i+1)*h]
-    return x, out
+    return x, out, unparsed
 
 
 def left_boundary_coords(x):
@@ -105,3 +116,20 @@ def boundary_coords(x):
         bottom_boundary_coords(x)
     ]
     return sc.vstack(coords_chain)
+
+def parse_bounds(x,dual_sol):
+    full_size = int(len(dual_sol)/2)
+    left_bound = len(x[1])
+    right_bound = left_bound+len(x[1])
+    top_bound = right_bound + len(x[0])
+    bottom_bound = top_bound + len(x[0])
+    out = dict()
+    out['left_pos'] = dual_sol[:left_bound]
+    out['left_neg'] = dual_sol[full_size:full_size+left_bound]
+    out['right_pos'] = dual_sol[left_bound:right_bound]
+    out['right_neg'] = dual_sol[full_size+left_bound:full_size+right_bound]
+    out['top_pos'] = dual_sol[right_bound:top_bound]
+    out['top_neg'] = dual_sol[full_size+right_bound:full_size+top_bound]
+    out['bottom_pos'] = dual_sol[top_bound:bottom_bound]
+    out['bottom_neg'] = dual_sol[full_size+top_bound:full_size+bottom_bound]
+    return out
