@@ -41,8 +41,10 @@ if __name__ == '__main__':
     sc.set_printoptions(precision=3, linewidth=110)
     reg = xt_vals[i_part0:i_part1, j_part0:j_part1]
     coords = ut.boundary_coords((X_part[i], T_part[j]))
+    # vals = sc.hstack([reg[0, :], sc.full_like(), reg[:, 0], reg[:, -1]])
     vals = sc.hstack([reg[0, :], reg[-1, :], reg[:, 0], reg[:, -1]])
     vgas = vals
+    vgas[0] = 0.5
     vdxgas = sc.zeros_like(vals)
     vdtgas = sc.zeros_like(vals)
     vcer = vals
@@ -58,18 +60,29 @@ if __name__ == '__main__':
 
     dual_sol_bnds = dict()
     dual_sol_bnds['gas'] = ut.parse_bounds((X_part[i], T_part[j]), xd[0][0])
-    dual_sol_bnds['dxgas'] = xd[0][1]
-    dual_sol_bnds['dtgas'] = xd[0][2]
+    dual_sol_bnds['dxgas'] = ut.parse_bounds((X_part[i], T_part[j]), xd[0][1])
+    dual_sol_bnds['dtgas'] = ut.parse_bounds((X_part[i], T_part[j]), xd[0][2])
     dual_sol_bnds['cer'] = ut.parse_bounds((X_part[i], T_part[j]), xd[1][0])
-    dual_sol_bnds['dtcer'] = xd[1][1]
+    dual_sol_bnds['dtcer'] = ut.parse_bounds((X_part[i], T_part[j]), xd[1][1])
     sc.set_printoptions(precision=3, linewidth=110)
     import pprint
 
-
+    print("gas")
     pprint.pprint(dual_sol_bnds['gas']['left_pos']-dual_sol_bnds['gas']['left_neg'])
     pprint.pprint(dual_sol_bnds['gas']['right_pos']-dual_sol_bnds['gas']['right_neg'])
     pprint.pprint(dual_sol_bnds['gas']['top_pos']-dual_sol_bnds['gas']['top_neg'])
     pprint.pprint(dual_sol_bnds['gas']['bottom_pos']-dual_sol_bnds['gas']['bottom_neg'])
+    print("dxgas")
+    pprint.pprint(dual_sol_bnds['dxgas']['left_pos']-dual_sol_bnds['gas']['left_neg'])
+    pprint.pprint(dual_sol_bnds['dxgas']['right_pos']-dual_sol_bnds['gas']['right_neg'])
+    pprint.pprint(dual_sol_bnds['dxgas']['top_pos']-dual_sol_bnds['gas']['top_neg'])
+    pprint.pprint(dual_sol_bnds['dxgas']['bottom_pos']-dual_sol_bnds['gas']['bottom_neg'])
+    print("dtgas")
+    pprint.pprint(dual_sol_bnds['dtgas']['left_pos']-dual_sol_bnds['gas']['left_neg'])
+    pprint.pprint(dual_sol_bnds['dtgas']['right_pos']-dual_sol_bnds['gas']['right_neg'])
+    pprint.pprint(dual_sol_bnds['dtgas']['top_pos']-dual_sol_bnds['gas']['top_neg'])
+    pprint.pprint(dual_sol_bnds['dtgas']['bottom_pos']-dual_sol_bnds['gas']['bottom_neg'])
+    print("cer")
     pprint.pprint(dual_sol_bnds['cer']['left_pos']-dual_sol_bnds['cer']['left_neg'])
     pprint.pprint(dual_sol_bnds['cer']['right_pos']-dual_sol_bnds['cer']['right_neg'])
     pprint.pprint(dual_sol_bnds['cer']['top_pos']-dual_sol_bnds['cer']['top_neg'])
@@ -77,7 +90,7 @@ if __name__ == '__main__':
     gas.coeffs = x[:10]
     cer.coeffs = x[10:20]
     xt_part = [(x, t) for x in X_part[0] for t in T_part[0]]
-    print(gas(xt_part)[:,0])
+    # print(gas(xt_part)[:,0])
     zz = dual_sol_bnds['gas']
     u_pos = sc.hstack([zz['left_pos'],
                        zz['right_pos'],
@@ -87,9 +100,9 @@ if __name__ == '__main__':
                        zz['right_neg'],
                        zz['top_neg'],
                        zz['bottom_neg']])
-    gas_vals = gas(coords)[:,0]
+    gas_vals = gas(coords)[:, 0]
     for i in range(len(coords)):
-        print(coords[i],vals[i],gas_vals[i],u_pos[i],u_neg[i])
+        print(coords[i], vals[i], gas_vals[i], u_pos[i], u_neg[i])
     i = 0
 
 

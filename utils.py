@@ -3,7 +3,7 @@ import scipy as sc
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 
-def solve_linear_test(prb, lp_dim, xdop, x):
+def solve_linear_test(prb, lp_dim, xdop, x, xd):
     xdop_ar = sc.zeros(lp_dim)
     xdop_ar[0] = xdop
     prb = xdop_ar + prb
@@ -11,7 +11,7 @@ def solve_linear_test(prb, lp_dim, xdop, x):
     A = sc.hstack((A, sc.ones((len(A), 1))))
     b = prb[:, 0]
     b = xdop - b
-    return A.dot(x) - b
+    print ("TEST_DUAL_SOLUTION: dual",sum(xd*b),"primal:",x[-1],"delta:",x[-1]-sum(xd*b))
 def solve_linear(prb, lp_dim, xdop):
     s = CyClpSimplex()
     x = s.addVariable('x', lp_dim)
@@ -29,7 +29,7 @@ def solve_linear(prb, lp_dim, xdop):
     s.dual()
     outx = s.primalVariableSolution['x']
     outx_dual = s.dualConstraintSolution
-    sc.savetxt('test1',outx_dual['R_1'])
+    # sc.savetxt('test1',outx_dual['R_1'])
     return outx, outx_dual
 
 
@@ -75,6 +75,7 @@ def approximate_equation_polynom(X, equation, polynoms, bound_coords, bound_vals
     prb = sc.vstack(prb_chain)
     x, xd = solve_linear(prb, lp_dim, xdop)
     xd = sc.array(list(xd.values())[0])
+    solve_linear_test(prb,lp_dim,xdop,x,xd)
     # xd = solve_linear_test(prb,lp_dim,xdop,x)
     xd = xd[len(res)*2:]
     unparsed = xd
