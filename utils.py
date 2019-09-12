@@ -3,6 +3,8 @@ import scipy as sc
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 
+LEFT,RIGHT,TOP,BOTTOM = range(4)
+
 def solve_linear_test(prb, lp_dim, xdop, x, xd):
     xdop_ar = sc.zeros(lp_dim)
     xdop_ar[0] = xdop
@@ -12,6 +14,9 @@ def solve_linear_test(prb, lp_dim, xdop, x, xd):
     b = prb[:, 0]
     b = xdop - b
     print ("TEST_DUAL_SOLUTION: dual",sum(xd*b),"primal:",x[-1],"delta:",x[-1]-sum(xd*b))
+    # sc.savetxt('outx',sc.vstack([A.dot(x)-b, xd]).transpose())
+
+
 def solve_linear(prb, lp_dim, xdop):
     s = CyClpSimplex()
     x = s.addVariable('x', lp_dim)
@@ -120,10 +125,10 @@ def boundary_coords(x):
 
 def parse_bounds(x,dual_sol):
     full_size = int(len(dual_sol)/2)
-    left_bound = len(x[1])
-    right_bound = left_bound+len(x[1])
-    top_bound = right_bound + len(x[0])
-    bottom_bound = top_bound + len(x[0])
+    left_bound = len(x[0])
+    right_bound = left_bound+len(x[0])
+    top_bound = right_bound + len(x[1])
+    bottom_bound = top_bound + len(x[1])
     out = dict()
     out['left_pos'] = dual_sol[:left_bound]
     out['left_neg'] = dual_sol[full_size:full_size+left_bound]

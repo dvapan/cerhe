@@ -108,6 +108,7 @@ class TestApproximate(unittest.TestCase):
         gas = tgas(coords)[:, 0]
         dxgas = tgas(coords, [1, 0])[:, 0]
         dtgas = tgas(coords, [0, 1])[:, 0]
+        print(dxgas, dtgas)
         cer = tcer(coords)[:, 0]
         dtcer = tcer(coords, [0, 1])[:, 0]
         bound_vals = [[gas, dxgas, dtgas], [cer, dtcer]]
@@ -131,6 +132,7 @@ class TestApproximate(unittest.TestCase):
 
         xt_part = [(x, t) for x in self.X_part[i] for t in self.T_part[j]]
         rgas, _ = make_gas_cer_pair(2, 3, x[0:10], x[10:20])
+        print(rgas(coords, [1, 0])[:, 0], rgas(coords, [0, 1])[:, 0])
         sct.assert_almost_equal(tgas(xt_part)[:, 0], rgas(xt_part)[:, 0],4)
 
     def test_boundary_approximation(self):
