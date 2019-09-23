@@ -40,15 +40,14 @@ class Polynom:
         return self.fx_var(x, deriv)
 
     def fx_var(self, x, deriv=None):
-        val = self.fx(x, deriv).reshape(-1, 1)
+        val = self.fx(x, deriv)
         if self.owner is None:
             return sc.hstack([val, self.var_coeffs])
         else:
-            count_exprs = len(val)
             size = self.coeff_size*self.owner.count
             shift = self.coeff_size*self.owner.index_of(self)
-            lzeros = sc.zeros((count_exprs, shift))
-            rzeros = sc.zeros((count_exprs, size - self.coeff_size - shift))
+            lzeros = sc.zeros( shift)
+            rzeros = sc.zeros(size - self.coeff_size - shift)
             return sc.hstack([val, lzeros, self.var_coeffs, rzeros])
 
 
@@ -76,7 +75,7 @@ def construct_element(x, pow_i, num_deriv):
                           [dpow_i >= 0, dpow_i < 0],
                           [lambda x: x, 0])
     coeff = vfact_div(pow_i, filtered)
-    return coeff * x**dpow_i
+    return coeff * pow(x, dpow_i)
 
 
 @lru_cache()
@@ -92,6 +91,4 @@ vfact_div = sc.vectorize(fact_div)
 
 def get_deriv_poly_var_coeffs(count_var, degree, x, deriv):
     pow_i = pow_indices(count_var, degree)
-    return sc.array(
-        [sc.multiply.reduce(construct_element(xi, pow_i, deriv).transpose())
-         for xi in x])
+    return sc.multiply.reduce(construct_element(x, pow_i, deriv),axis=1).T

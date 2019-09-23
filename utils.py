@@ -2,6 +2,7 @@ import scipy as sc
 # noinspection PyUnresolvedReferences
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
+from polynom import Polynom, Context
 
 LEFT,RIGHT,TOP,BOTTOM = range(4)
 
@@ -61,9 +62,11 @@ def approximate_bound_polynom(polynom, vals,xdop):
 
 def approximate_equation_polynom(X, equation, polynoms, bound_coords, bound_vals, derivs, xdop):
     prb_chain = []
+    slice = list()
     xt_part = [(x, t) for x in X[0] for t in X[1]]
     res = equation(xt_part, polynoms[1], polynoms[0])
     prb_chain.append(res)
+    slice.append(len(slice))
     prb_chain.append(-res)
     count_boundares = 0
     for poly_idx in range(len(polynoms)):
@@ -80,7 +83,7 @@ def approximate_equation_polynom(X, equation, polynoms, bound_coords, bound_vals
     prb = sc.vstack(prb_chain)
     x, xd = solve_linear(prb, lp_dim, xdop)
     xd = sc.array(list(xd.values())[0])
-    solve_linear_test(prb,lp_dim,xdop,x,xd)
+    solve_linear_test(prb, lp_dim, xdop, x, xd)
     # xd = solve_linear_test(prb,lp_dim,xdop,x)
     xd = xd[len(res)*2:]
     unparsed = xd
@@ -115,27 +118,32 @@ def bottom_boundary_coords(x):
 
 
 def boundary_coords(x):
-    coords_chain = [
-        left_boundary_coords(x),
-        right_boundary_coords(x),
-        top_boundary_coords(x),
-        bottom_boundary_coords(x)
-    ]
-    return sc.vstack(coords_chain)
+    coords = {
+        'l': left_boundary_coords(x),
+        'r': right_boundary_coords(x),
+        't': top_boundary_coords(x),
+        'b': bottom_boundary_coords(x)
+    }
+    return coords
 
-def parse_bounds(x,dual_sol):
-    full_size = int(len(dual_sol)/2)
-    left_bound = len(x[0])
-    right_bound = left_bound+len(x[0])
-    top_bound = right_bound + len(x[1])
-    bottom_bound = top_bound + len(x[1])
-    out = dict()
-    out['left_pos'] = dual_sol[:left_bound]
-    out['left_neg'] = dual_sol[full_size:full_size+left_bound]
-    out['right_pos'] = dual_sol[left_bound:right_bound]
-    out['right_neg'] = dual_sol[full_size+left_bound:full_size+right_bound]
-    out['top_pos'] = dual_sol[right_bound:top_bound]
-    out['top_neg'] = dual_sol[full_size+right_bound:full_size+top_bound]
-    out['bottom_pos'] = dual_sol[top_bound:bottom_bound]
-    out['bottom_neg'] = dual_sol[full_size+top_bound:full_size+bottom_bound]
-    return out
+
+def make_gas_cer_pair(count_var, degree, gas_coeffs=None, cer_coeffs=None):
+    cer = Polynom(count_var, degree)
+    gas = Polynom(count_var, degree)
+    if gas_coeffs is not None:
+        gas.coeffs = gas_coeffs
+    if cer_coeffs is not None:
+        cer.coeffs = cer_coeffs
+    context_test = Context()
+    context_test.assign(gas)
+    context_test.assign(cer)
+    return gas, cer
+
+splitter = (0, 17, 33, 50)
+
+def slice(i,j):
+    i_part0 = splitter[i]
+    i_part1 = splitter[i + 1]
+    j_part0 = splitter[j]
+    j_part1 = splitter[j + 1]
+    return i_part0, i_part1, j_part0, j_part1
