@@ -50,7 +50,7 @@ def add_constraints_block(chain, coords, sign, ptype, etype, fnc, test_val):
     task['test_val'] = signv*test_val
     vals = signv*fnc[etype](coords[ptype])
     task['coeff'] = vals[:, 1:]
-    task['val'] = vals[:, 1]
+    task['val'] = vals[:, 0]
     chain.append(task)
 
 
@@ -95,6 +95,35 @@ funcs[b'cer'] = sc.vectorize(
 funcs[b'dtcer'] = sc.vectorize(
     lambda x: tc(x, [0, 1]),
     signature="(m)->(k)")
+
+def slvrd(tsk):
+    """Approximate solutioon with polynom by one residual"""
+    delta_val = tsk['val']-tsk['test_val']
+    prb = sc.hstack([delta_val.reshape((-1, 1)), tsk['coeff']])
+
+    lp_dim = tc.coeff_size+tg.coeff_size+1
+    return lut.slvlprd(prb, lp_dim, xdop)
+
+def slvrdn(tsk, bnd):
+    """Approximate solutioon with polynom by n residuals"""
+    q = tsk
+    ind_part = 1 + sc.arange(len(q[q['sign'] == b'+']))
+
+    ind_full = sc.zeros_like(q['val'],sc.int64)
+
+    mask = q['sign'] == b'+'
+    ind_full[mask] = ind_part
+    mask = q['sign'] == b'-'
+    ind_full[mask] = ind_part
+
+    delta_val = task[0][0]['val'] - task[0][0]['test_val']
+
+    prb = sc.hstack([delta_val.reshape((-1, 1)), task[0][0]['coeff']])
+
+    lp_dim = tc.coeff_size+tg.coeff_size
+    return lut.slvlprdn(prb, lp_dim, ind_full, xdop, bnd)
+
+
 
 xdop = 1
 xreg, treg = 3, 3
@@ -149,13 +178,8 @@ for i in range(1):
         task[i].append(qq)
         print("region",i,j)
 
-delta_val = task[0][0]['val']-task[0][0]['test_val']
 
-prb = sc.hstack([delta_val.reshape((-1, 1)), task[0][0]['coeff']])
-
-lp_dim = tc.coeff_size+tg.coeff_size+1
-x, xd, xs = lut.slvlprd(prb, lp_dim, xdop)
-
+x, xs, xd = slvrd(task[0][0])
 
 xs = sc.array(list(xs.values())[0])
 xd = sc.array(list(xd.values())[0])
@@ -163,6 +187,13 @@ task[0][0]['dual'] = xd
 task[0][0]['slack'] = xs
 
 q = task[0][0]
+
+tg.coeffs=x[:10]
+
+for coord in task[0][0]['coord']:
+    print (tg(coord)[0])
+
+bnd = x[-1]
 # q = q[abs(q['dual'])>1e-6]
 # out = sc.vstack([q['coord'][:, 0], q['coord'][:, 1], q['dual'], q['slack']])
 # sc.savetxt('out', out.T)
@@ -170,12 +201,26 @@ q = task[0][0]
 # print(funcs[b'gas'](q['coord']))
 # print(x)
 
-constraints = q[q['ptype'] != b'i']
+# constraints = q[q['ptype'] != b'i']
+#
+# pos_part = constraints[constraints['sign'] == b'+']
+# neg_part = constraints[constraints['sign'] == b'-']
+# out = sc.vstack([pos_part['dual'], neg_part['dual'], pos_part['test_val']])
+# sc.savetxt('out',out.T)
 
-pos_part = constraints[constraints['sign'] == b'+']
-neg_part = constraints[constraints['sign'] == b'-']
+# print((q['val']-q['test_val']))
+#
+# print (sc.sum(x[:-1] * q['coeff'],axis=1))
 
-print(pos_part)
+resid = (q['val']-q['test_val']) + sc.sum(x[:-1] * q['coeff'],axis=1)
+pos_part = resid[q['sign'] == b'+']
+neg_part = resid[q['sign'] == b'-']
+sc.savetxt('out',sc.vstack([pos_part, neg_part]).T)
+resid = sc.ndarray.max(sc.vstack([pos_part, neg_part]).T,axis=1)
 
-out = sc.vstack([pos_part['dual'], neg_part['dual'], pos_part['test_val']])
-sc.savetxt('out',out.T)
+one_resid = x[-1], sum(resid)
+
+x,xd,xs = slvrdn(task[0][0],bnd)
+nresid = max(x[20:]), sum(x[20:])
+
+print (sc.array([one_resid,nresid]))

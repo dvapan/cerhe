@@ -13,9 +13,12 @@ def slvlprd(prb, lp_dim, xdop):
     A = sc.hstack((A, sc.ones((len(A), 1))))
     A = sc.matrix(A)
     b = prb[:, 0]
+
     b = xdop - b
     b = CyLPArray(b)
     s += A*x >= b
+    s += x[lp_dim-1] >= 0
+    s += x[lp_dim-1] <= xdop
     s.objective = x[-1]
     s.dual()
     outx = s.primalVariableSolution['x']
@@ -23,7 +26,7 @@ def slvlprd(prb, lp_dim, xdop):
     return outx, outx_dual, s.primalConstraintSolution
 
 
-def slvlprdn(prb, lp_dim, ind, xdop):
+def slvlprdn(prb, lp_dim, ind, xdop, bnd):
     """Solve linear problem with n residual, by cylp"""
     ind_max = max(ind) + 1
     def make_prb(i):
@@ -47,6 +50,9 @@ def slvlprdn(prb, lp_dim, ind, xdop):
     b = xdop - b
     b = CyLPArray(b)
     s += A*x >= b
+    for i in range(lp_dim,lp_dim+ind_max):
+        s += x[i] >= 0
+        s += x[i] <= bnd
     obj = 0
     for var_ind in range(ind_max):
         obj += x[lp_dim + var_ind]

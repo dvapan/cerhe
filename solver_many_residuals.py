@@ -5,7 +5,7 @@ from cylp.py.modeling.CyLPModel import CyLPArray
 from numpy.lib import recfunctions as rfn
 import dbalance as db
 import utils as ut
-from polynom import Context, Polynom
+import lp_utils as lut
 
 length = 1
 time = 50
@@ -33,7 +33,6 @@ tbltype = sc.dtype([('coord', sc.float64, 2),
                     ('sign', 'S1'),
                     ('ptype', 'S1'),
                     ('etype', 'S11'),
-                    ('ind', sc.int64),
                     ('test_val', sc.float64),
                     ('val', sc.float64),
                     ('coeff', sc.float64, 2 * 10),
@@ -171,35 +170,29 @@ for i in range(1):
         add_constraints_boundary(chain, xt, [b'gas', b'cer'], #[b'gas', b'dxgas', b'dtgas', b'cer', b'dtcer'],
                                  funcs, bound_vals, exist_directions)
         qq = rfn.stack_arrays(chain, usemask=False)
-        ln = len(qq[qq['sign'] == b'-'])
-        qq[qq['sign'] == b'-']['ind'] = sc.arange(ln)
-        qq[qq['sign'] == b'+']['ind'] = sc.arange(ln)
         task[i].append(qq)
         print("region", i, j)
 
-q = task[0][0]
-ind_part = 1 + sc.arange(len(q[q['sign'] == b'+']))
+def slvrdn(tsk):
 
-ind_full = sc.zeros_like(q['val'])
+    q = tsk
+    ind_part = 1 + sc.arange(len(q[q['sign'] == b'+']))
 
+    ind_full = sc.zeros_like(q['val'],sc.int64)
 
-mask = q['sign'] == b'+'
-ind_full[mask] = ind_part
-mask = q['sign'] == b'-'
-ind_full[mask] = ind_part
+    mask = q['sign'] == b'+'
+    ind_full[mask] = ind_part
+    mask = q['sign'] == b'-'
+    ind_full[mask] = ind_part
 
-task[0][0]['ind'] = ind_full
-# print(task[0][0][q['ptype'] != b'i'])
+    delta_val = task[0][0]['val'] - task[0][0]['test_val']
 
-delta_val = task[0][0]['val'] - task[0][0]['test_val']
+    prb = sc.hstack([delta_val.reshape((-1, 1)), task[0][0]['coeff']])
 
-prb = sc.hstack([delta_val.reshape((-1, 1)), task[0][0]['coeff']])
+    lp_dim = tc.coeff_size+tg.coeff_size
+    return lut.slvlprdn(prb, lp_dim, ind_full, xdop)
 
-# exit()
-
-lp_dim = tc.coeff_size+tg.coeff_size
-x, xd, xs = solve_linear(prb, lp_dim, task[0][0]['ind'], xdop)
-
+x,xd,xs = slvrdn(task[0][0])
 
 xs = sc.array(list(xs.values())[0])
 xd = sc.array(list(xd.values())[0])
@@ -210,10 +203,6 @@ q = task[0][0]
 # q = q[abs(q['dual'])>1e-6]
 out = sc.vstack([q['coord'][:, 0], q['coord'][:, 1], q['dual'], q['slack']])
 sc.savetxt('out', out.T)
-
-print(funcs[b'gas'](q['coord']))
-print(x[lp_dim:])
-print(max(x[lp_dim:]))
 
 # constraints = q[q['ptype'] != b'i']
 #
