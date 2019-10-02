@@ -1,7 +1,11 @@
 import scipy as sc
+from cylp.cy import CyClpSimplex
+from cylp.py.modeling.CyLPModel import CyLPArray
+
 from numpy.lib import recfunctions as rfn
+import dbalance as db
 import utils as ut
-import lp_utils as lut
+from polynom import Context, Polynom
 
 length = 1
 time = 50
@@ -29,6 +33,7 @@ tbltype = sc.dtype([('coord', sc.float64, 2),
                     ('sign', 'S1'),
                     ('ptype', 'S1'),
                     ('etype', 'S11'),
+                    ('ind', sc.int64),
                     ('test_val', sc.float64),
                     ('val', sc.float64),
                     ('coeff', sc.float64, 2 * 10),
@@ -114,6 +119,26 @@ xt_vals_zero = sc.zeros_like(xt_vals_gas_revr)
 
 xt_vals_gas = sc.vstack([xt_vals_gas_prim, xt_vals_gas_revr])
 
+# TEST fortran counted data
+# at, atr = sc.array_split(sc.loadtxt("tests/rain33.dat"), 2)
+# at = at.reshape((3, 3, 2, 10))
+# atr = atr.reshape((3, 3, 2, 10))
+# tgas1, tcer1 = ut.make_gas_cer_pair(2, 3, at[0][0][0], at[0][0][1])
+# tgas2, tcer2 = ut.make_gas_cer_pair(2, 3, at[1][0][0], at[1][0][1])
+#
+# i, j = 0, 0
+# xv, tv = sc.meshgrid(X_part[i], T_part[j])
+# xv = xv.reshape(-1)
+# tv = tv.reshape(-1)
+#
+# xt = ut.boundary_coords((X_part[i], T_part[j]))
+# xt['i'] = sc.vstack([xv, tv]).T
+# fnc = sc.vectorize(
+#     lambda x: tgas1(x),
+#     signature="(m)->(k)")
+# print(fnc(xt['i']))
+# exit()
+# END TEST BLOCK
 task = list()
 from pprint import pprint
 for i in range(1):
@@ -143,18 +168,37 @@ for i in range(1):
         chain = list()
         add_constraints_internal(chain, xt, b'balance_eq1', funcs)
         add_constraints_internal(chain, xt, b'balance_eq2', funcs)
-        add_constraints_boundary(chain, xt, [b'gas', b'cer'],
+        add_constraints_boundary(chain, xt, [b'gas', b'cer'], #[b'gas', b'dxgas', b'dtgas', b'cer', b'dtcer'],
                                  funcs, bound_vals, exist_directions)
         qq = rfn.stack_arrays(chain, usemask=False)
+        ln = len(qq[qq['sign'] == b'-'])
+        qq[qq['sign'] == b'-']['ind'] = sc.arange(ln)
+        qq[qq['sign'] == b'+']['ind'] = sc.arange(ln)
         task[i].append(qq)
-        print("region",i,j)
+        print("region", i, j)
 
-delta_val = task[0][0]['val']-task[0][0]['test_val']
+q = task[0][0]
+ind_part = 1 + sc.arange(len(q[q['sign'] == b'+']))
+
+ind_full = sc.zeros_like(q['val'])
+
+
+mask = q['sign'] == b'+'
+ind_full[mask] = ind_part
+mask = q['sign'] == b'-'
+ind_full[mask] = ind_part
+
+task[0][0]['ind'] = ind_full
+# print(task[0][0][q['ptype'] != b'i'])
+
+delta_val = task[0][0]['val'] - task[0][0]['test_val']
 
 prb = sc.hstack([delta_val.reshape((-1, 1)), task[0][0]['coeff']])
 
-lp_dim = tc.coeff_size+tg.coeff_size+1
-x, xd, xs = lut.slvlprd(prb, lp_dim, xdop)
+# exit()
+
+lp_dim = tc.coeff_size+tg.coeff_size
+x, xd, xs = solve_linear(prb, lp_dim, task[0][0]['ind'], xdop)
 
 
 xs = sc.array(list(xs.values())[0])
@@ -164,18 +208,17 @@ task[0][0]['slack'] = xs
 
 q = task[0][0]
 # q = q[abs(q['dual'])>1e-6]
-# out = sc.vstack([q['coord'][:, 0], q['coord'][:, 1], q['dual'], q['slack']])
-# sc.savetxt('out', out.T)
+out = sc.vstack([q['coord'][:, 0], q['coord'][:, 1], q['dual'], q['slack']])
+sc.savetxt('out', out.T)
+
+print(funcs[b'gas'](q['coord']))
+print(x[lp_dim:])
+print(max(x[lp_dim:]))
+
+# constraints = q[q['ptype'] != b'i']
 #
-# print(funcs[b'gas'](q['coord']))
-# print(x)
-
-constraints = q[q['ptype'] != b'i']
-
-pos_part = constraints[constraints['sign'] == b'+']
-neg_part = constraints[constraints['sign'] == b'-']
-
-print(pos_part)
-
-out = sc.vstack([pos_part['dual'], neg_part['dual'], pos_part['test_val']])
-sc.savetxt('out',out.T)
+# pos_part = constraints[constraints['sign'] == b'+']
+# neg_part = constraints[constraints['sign'] == b'-']
+#
+# out = sc.vstack([pos_part['dual'], neg_part['dual'], pos_part['test_val']])
+# sc.savetxt('out',out.T)
