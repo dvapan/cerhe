@@ -145,9 +145,9 @@ xt_vals_gas = sc.vstack([xt_vals_gas_prim, xt_vals_gas_revr])
 
 task = list()
 from pprint import pprint
-for i in range(1):
+for i in range(treg):
     task.append(list())
-    for j in range(2):
+    for j in range(xreg):
         xv, tv = sc.meshgrid(X_part[i], T_part[j])
         xv = xv.reshape(-1)
         tv = tv.reshape(-1)
@@ -176,51 +176,74 @@ for i in range(1):
                                  funcs, bound_vals, exist_directions)
         qq = rfn.stack_arrays(chain, usemask=False)
         task[i].append(qq)
-        print("region",i,j)
+        print("region", i, j)
+
+        x, xs, xd = slvrd(task[i][j])
+
+        xs = sc.array(list(xs.values())[0])
+        xd = sc.array(list(xd.values())[0])
+        task[i][j]['dual'] = xd
+        task[i][j]['slack'] = xs
+        print(x[-1])
+
+tg.coeffs = x[:10]
+
+funcs = sc.vectorize(
+    lambda x: tg(x),
+    signature="(m)->(k)")
+
+q = task[0][0][task[0][0]['etype']==b'gas']
+qq = q[q['ptype'] == b'r']
+a = funcs(qq['coord'])[:, 0]
 
 
-x, xs, xd = slvrd(task[0][0])
+q1 = task[1][0][task[1][0]['etype']==b'gas']
+qq1 = q1[q1['ptype'] == b'l']
+b = funcs(qq1['coord'])[:, 0]
 
-xs = sc.array(list(xs.values())[0])
-xd = sc.array(list(xd.values())[0])
-task[0][0]['dual'] = xd
-task[0][0]['slack'] = xs
+at, atr = sc.array_split(sc.loadtxt("tests/rain33.dat"), 2)
+at = at.reshape((3, 3, 2, 10))
+atr = atr.reshape((3, 3, 2, 10))
+tgas1, tcer1 = ut.make_gas_cer_pair(2, 3, at[0][0][0], at[0][0][1])
+tgas2, tcer2 = ut.make_gas_cer_pair(2, 3, at[1][0][0], at[1][0][1])
 
-q = task[0][0]
+funcs = sc.vectorize(
+    lambda x: tgas1(x),
+    signature="(m)->(k)")
 
-tg.coeffs=x[:10]
+c = funcs(qq1['coord'])[:, 0]
 
-for coord in task[0][0]['coord']:
-    print (tg(coord)[0])
+res = sc.vstack([qq['test_val'],a,b, (a+b)/2, c]).T
+sc.savetxt('out', res)
 
-bnd = x[-1]
+
 # q = q[abs(q['dual'])>1e-6]
 # out = sc.vstack([q['coord'][:, 0], q['coord'][:, 1], q['dual'], q['slack']])
 # sc.savetxt('out', out.T)
 #
 # print(funcs[b'gas'](q['coord']))
 # print(x)
-
+#
 # constraints = q[q['ptype'] != b'i']
 #
 # pos_part = constraints[constraints['sign'] == b'+']
 # neg_part = constraints[constraints['sign'] == b'-']
 # out = sc.vstack([pos_part['dual'], neg_part['dual'], pos_part['test_val']])
 # sc.savetxt('out',out.T)
-
+#
 # print((q['val']-q['test_val']))
 #
 # print (sc.sum(x[:-1] * q['coeff'],axis=1))
-
-resid = (q['val']-q['test_val']) + sc.sum(x[:-1] * q['coeff'],axis=1)
-pos_part = resid[q['sign'] == b'+']
-neg_part = resid[q['sign'] == b'-']
-sc.savetxt('out',sc.vstack([pos_part, neg_part]).T)
-resid = sc.ndarray.max(sc.vstack([pos_part, neg_part]).T,axis=1)
-
-one_resid = x[-1], sum(resid)
-
-x,xd,xs = slvrdn(task[0][0],bnd)
-nresid = max(x[20:]), sum(x[20:])
-
-print (sc.array([one_resid,nresid]))
+#
+# resid = (q['val']-q['test_val']) + sc.sum(x[:-1] * q['coeff'],axis=1)
+# pos_part = resid[q['sign'] == b'+']
+# neg_part = resid[q['sign'] == b'-']
+# sc.savetxt('out',sc.vstack([pos_part, neg_part]).T)
+# resid = sc.ndarray.max(sc.vstack([pos_part, neg_part]).T,axis=1)
+#
+# one_resid = x[-1], sum(resid)
+#
+# x,xd,xs = slvrdn(task[0][0],bnd)
+# nresid = max(x[20:]), sum(x[20:])
+#
+# print (sc.array([one_resid,nresid]))
