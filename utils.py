@@ -48,7 +48,7 @@ def make_gas_cer_pair(count_var, degree, gas_coeffs=None, cer_coeffs=None):
 
 splitter = (0, 17, 33, 50)
 
-def slice(i,j):
+def slice(j,i):
     i_part0 = splitter[i]
     i_part1 = splitter[i + 1]
     j_part0 = splitter[j]

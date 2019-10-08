@@ -109,7 +109,7 @@ def slvrdn(tsk, bnd):
     q = tsk
     ind_part = 1 + sc.arange(len(q[q['sign'] == b'+']))
 
-    ind_full = sc.zeros_like(q['val'],sc.int64)
+    ind_full = sc.zeros_like(q['val'], sc.int64)
 
     mask = q['sign'] == b'+'
     ind_full[mask] = ind_part
@@ -143,16 +143,66 @@ xt_vals_zero = sc.zeros_like(xt_vals_gas_revr)
 
 xt_vals_gas = sc.vstack([xt_vals_gas_prim, xt_vals_gas_revr])
 
-task = list()
+
+def lft_val(x):
+    return x[0,:]
+def rht_val(x):
+    return x[-1,:]
+def top_val(x):
+    return x[:,0]
+def dwn_val(x):
+    return x[:,-1]
+
+bnd_val = list()
+exist_directions = list()
+for i in range(treg):
+    bnd_val.append(list())
+    exist_directions.append(list())
+    for j in range(xreg):
+        bnd_val[i].append(dict())
+        exist_directions[i].append(list())
+
+        i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j)
+
+        reg = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
+
+        if j > 0:
+            i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j - 1)
+            regl = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
+            bnd_val[i][j]['l'] = (lft_val(reg) + rht_val(regl)) / 2
+            exist_directions[i][j].append("l")
+        else:
+            bnd_val[i][j]['l'] = lft_val(reg)
+            exist_directions[i][j].append("l")
+
+        if j < xreg - 1:
+            i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j + 1)
+            regr = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
+            bnd_val[i][j]['r'] = (rht_val(reg) + lft_val(regr)) / 2
+            exist_directions[i][j].append("r")
+
+        if i > 0:
+            i_part0, i_part1, j_part0, j_part1 = ut.slice(i - 1, j)
+            regt = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
+            bnd_val[i][j]['t'] = (top_val(reg) + dwn_val(regt)) / 2
+            exist_directions[i][j].append("t")
+        if i < treg - 1:
+            i_part0, i_part1, j_part0, j_part1 = ut.slice(i + 1, j)
+            regb = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
+            bnd_val[i][j]['b'] = (dwn_val(reg) + top_val(regb)) / 2
+            exist_directions[i][j].append("b")
+
+
 from pprint import pprint
+task = list()
 for i in range(treg):
     task.append(list())
     for j in range(xreg):
-        xv, tv = sc.meshgrid(X_part[i], T_part[j])
+        xv, tv = sc.meshgrid(X_part[j], T_part[i])
         xv = xv.reshape(-1)
         tv = tv.reshape(-1)
 
-        xt = ut.boundary_coords((X_part[i], T_part[j]))
+        xt = ut.boundary_coords((X_part[j], T_part[i]))
         xt['i'] = sc.vstack([xv, tv]).T
 
         i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j)
@@ -165,85 +215,27 @@ for i in range(treg):
             'b': reg[:, -1]
         })
 
-        if j == 0:
-            exist_directions = "lrb"
-        else:
-            exist_directions = "lrtb"
         chain = list()
         add_constraints_internal(chain, xt, b'balance_eq1', funcs)
         add_constraints_internal(chain, xt, b'balance_eq2', funcs)
         add_constraints_boundary(chain, xt, [b'gas', b'cer'],
-                                 funcs, bound_vals, exist_directions)
+                                 funcs, bnd_val[i][j], exist_directions[i][j])
         qq = rfn.stack_arrays(chain, usemask=False)
         task[i].append(qq)
-        print("region", i, j)
-
+        print("region",i,j,":",exist_directions[i][j])
+        print ("="*100)
+        pprint(bnd_val[i][j])
+        print('*'*100)
+        pprint(bound_vals)
         x, xs, xd = slvrd(task[i][j])
 
         xs = sc.array(list(xs.values())[0])
         xd = sc.array(list(xd.values())[0])
         task[i][j]['dual'] = xd
         task[i][j]['slack'] = xs
-        print(x[-1])
+        print(x[-1],x)
 
-tg.coeffs = x[:10]
-
-funcs = sc.vectorize(
-    lambda x: tg(x),
-    signature="(m)->(k)")
-
-q = task[0][0][task[0][0]['etype']==b'gas']
-qq = q[q['ptype'] == b'r']
-a = funcs(qq['coord'])[:, 0]
-
-
-q1 = task[1][0][task[1][0]['etype']==b'gas']
-qq1 = q1[q1['ptype'] == b'l']
-b = funcs(qq1['coord'])[:, 0]
-
-at, atr = sc.array_split(sc.loadtxt("tests/rain33.dat"), 2)
-at = at.reshape((3, 3, 2, 10))
-atr = atr.reshape((3, 3, 2, 10))
-tgas1, tcer1 = ut.make_gas_cer_pair(2, 3, at[0][0][0], at[0][0][1])
-tgas2, tcer2 = ut.make_gas_cer_pair(2, 3, at[1][0][0], at[1][0][1])
-
-funcs = sc.vectorize(
-    lambda x: tgas1(x),
-    signature="(m)->(k)")
-
-c = funcs(qq1['coord'])[:, 0]
-
-res = sc.vstack([qq['test_val'],a,b, (a+b)/2, c]).T
-sc.savetxt('out', res)
-
-
-# q = q[abs(q['dual'])>1e-6]
-# out = sc.vstack([q['coord'][:, 0], q['coord'][:, 1], q['dual'], q['slack']])
-# sc.savetxt('out', out.T)
-#
-# print(funcs[b'gas'](q['coord']))
-# print(x)
-#
-# constraints = q[q['ptype'] != b'i']
-#
-# pos_part = constraints[constraints['sign'] == b'+']
-# neg_part = constraints[constraints['sign'] == b'-']
-# out = sc.vstack([pos_part['dual'], neg_part['dual'], pos_part['test_val']])
-# sc.savetxt('out',out.T)
-#
-# print((q['val']-q['test_val']))
-#
-# print (sc.sum(x[:-1] * q['coeff'],axis=1))
-#
-# resid = (q['val']-q['test_val']) + sc.sum(x[:-1] * q['coeff'],axis=1)
-# pos_part = resid[q['sign'] == b'+']
-# neg_part = resid[q['sign'] == b'-']
-# sc.savetxt('out',sc.vstack([pos_part, neg_part]).T)
-# resid = sc.ndarray.max(sc.vstack([pos_part, neg_part]).T,axis=1)
-#
-# one_resid = x[-1], sum(resid)
-#
-# x,xd,xs = slvrdn(task[0][0],bnd)
-# nresid = max(x[20:]), sum(x[20:])
-#
-# print (sc.array([one_resid,nresid]))
+        tgt, tct = ut.make_gas_cer_pair(2, 3, x[:10], x[10:-1])
+        fnc = sc.vectorize(
+            lambda x: tgt(x),
+            signature="(m)->(k)")

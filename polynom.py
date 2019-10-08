@@ -75,7 +75,7 @@ def construct_element(x, pow_i, num_deriv):
                           [dpow_i >= 0, dpow_i < 0],
                           [lambda x: x, 0])
     coeff = vfact_div(pow_i, filtered)
-    return coeff * pow(x, dpow_i)
+    return coeff * sc.power(x, dpow_i)
 
 
 @lru_cache()
