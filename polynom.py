@@ -55,6 +55,7 @@ class Polynom:
 def pow_indices(vars_count, degree):
     """ Function returns power indices for variables in polynom.
     """
+
     max_num = degree * 10**(vars_count - 1)
     nums = filter(lambda x: nsum(x) <= degree, range(max_num + 1))
     fmt_str = '{:0>' + str(vars_count) + '}'

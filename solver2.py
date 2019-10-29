@@ -33,7 +33,7 @@ tbltype = sc.dtype([('coord', sc.float64, 2),
                     ('val', sc.float64),
                     ('coeff', sc.float64, 2 * 10),
                     ('dual', sc.float64),
-                    ('slack',sc.float64)])
+                    ('region_id',sc.int64)])
 
 
 def add_constraints_block(chain, coords, sign, ptype, etype, fnc, test_val):
@@ -124,7 +124,8 @@ def slvrdn(tsk, bnd):
     lp_dim = tc.coeff_size+tg.coeff_size
     return lut.slvlprdn(prb, lp_dim, ind_full, xdop, bnd)
 
-
+def slvrd_coord(tsk):
+    pass
 
 xdop = 1
 xreg, treg = 3, 3
@@ -241,15 +242,14 @@ while solve:
     for i in range(treg):
         for j in range(xreg):
             print("solve region",i,j)
-            x, xd, xs = slvrd(task[i][j])
+            x, xd = slvrd(task[i][j])
 
             #xs = sc.array(list(xs.values())[0])
-            xd = sc.array(list(xd.values())[0])
+            # xd = sc.array(list(xd.values())[0])
             task[i][j]['dual'] = xd
-            task[i][j]['slack'] = xs
             q = task[i][j]
-            outinfo = [q['dual'], q['slack']]
-            sc.savetxt('iter{}_out{}{}'.format(iter, i, j), sc.vstack(outinfo).T)
+            # outinfo = [q['dual'], q['slack']]
+            # sc.savetxt('iter{}_out{}{}'.format(iter, i, j), sc.vstack(outinfo).T)
 
             print(x[-1])
             residual = max(residual, x[-1])
@@ -267,10 +267,30 @@ while solve:
     file = open("dat","a")
     file.write(str(data[-1])+"\n")
     file.close()
-    exit()
+
     if abs(residual) < 1e-5:
         break
     print ("{:*^200}".format("UPDATE VALS"))
+
+    N = 25
+    new_task = list()
+    reg_id = 0
+    cnstr_count = 0
+    for i in range(treg):
+        for j in range(xreg):
+            task[i][j]['region_id'] = reg_id
+            q = sc.sort(task[i][j], order='dual')
+            niter = 0
+            for eq in q:
+                if niter >= N:
+                    break
+                niter += 1
+                # eq['region_id'] = reg_id
+                if eq['ptype'] == b'i':
+                #     cnstr_count += 1
+                # else:
+                    new_task.append(eq)
+            reg_id += 1
 
     new_vals = list()
     for i in range(treg):
@@ -283,7 +303,6 @@ while solve:
             bottom_mask = q['ptype'] == b'b'
 
             new_val = sc.zeros_like(q['val'])
-
             if j > 0:
                 qn = task[i][j-1]
                 nbr_mask = qn['ptype'] == b'r'
@@ -311,6 +330,39 @@ while solve:
             # sc.savetxt('iter{}_out{}{}'.format(iter, i, j),sc.vstack(outinfo).T)
             new_vals[i].append(new_val)
 
+
+
+    for i in range(treg):
+        for j in range(xreg):
+            for eq in task[i][j]:
+                if eq['ptype'] != b'i':
+                    cnstr_count += 1
+                    new_task.append(eq)
+
+    new_task = sc.array(new_task)
+    print(len(new_task))
+
+    prb = list()
+    constr_idx = 0
+    for eq in new_task:
+        shift = eq['region_id']
+        psize = len(eq['coeff'])
+        lzeros = sc.zeros(psize * shift)
+        rzeros = sc.zeros((reg_id - shift) * psize)
+
+        pars = sc.zeros(cnstr_count)
+        if eq['ptype'] != b'i':
+            pars[constr_idx] = 1
+            constr_idx += 1
+        line = sc.hstack([[0],lzeros, eq['coeff'], rzeros, pars])
+        prb.append(line)
+
+    prb = sc.vstack(prb)
+    lp_dim = psize * (reg_id + 1) + len(pars) + 1
+    x, xd = lut.slvlprd(prb, lp_dim, xdop)
+    print(x)
+
+    exit()
     print ("{:*^200}".format("REMAKE TASK"))
 
     task = list()
