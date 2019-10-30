@@ -29,6 +29,7 @@ class Polynom:
         self.var_coeffs = None
         self.owner = None
 
+
     def fx(self, x, deriv=None):
         if deriv is None:
             deriv = sc.zeros_like(x[0])
@@ -92,4 +93,4 @@ vfact_div = sc.vectorize(fact_div)
 
 def get_deriv_poly_var_coeffs(count_var, degree, x, deriv):
     pow_i = pow_indices(count_var, degree)
-    return sc.multiply.reduce(construct_element(x, pow_i, deriv),axis=1).T
+    return sc.multiply.reduce(construct_element(x, pow_i, deriv), axis=1).T
