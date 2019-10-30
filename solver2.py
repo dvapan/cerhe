@@ -71,7 +71,7 @@ def add_one_constraints_boundary(chain, coords, etype, fnc, test_val,exist_direc
         add_constraints_residual(chain, coords, ptype, etype, fnc, test_val[ptype], bnd_idx[ptype])
 def add_constraints_boundary(chain, coords, etypes, fnc, test_val, exist_directions, bnd_idx):
     for etype in etypes:
-        add_one_constraints_boundary(chain, coords, etype, fnc, test_val, exist_directions, bnd_idx[etype])
+        add_one_constraints_boundary(chain, coords, etype, fnc, test_val[etype], exist_directions, bnd_idx[etype])
 
 tg, tc = ut.make_gas_cer_pair(2, 3)
 
@@ -137,6 +137,7 @@ X = sc.linspace(0, 1, 50)
 T = sc.linspace(0, 50, 50)
 
 X_part = sc.split(X, (17, 33))
+print(X_part)
 T_part = sc.split(T, (17, 33))
 
 xt_vals_gas_prim = sc.repeat(sc.linspace(1, 0, 50), 50).reshape(-1, 50)
@@ -147,9 +148,6 @@ xt_vals_zero = sc.zeros_like(xt_vals_gas_revr)
 
 xt_vals_gas = sc.vstack([xt_vals_gas_prim, xt_vals_gas_revr])
 
-print (xt_vals_gas)
-
-exit()
 def lft_val(x):
     return x[0, :]
 def rht_val(x):
@@ -168,7 +166,7 @@ for i in range(treg):
     exist_directions.append(list())
     bnd_idx.append(list())
     for j in range(xreg):
-        bnd_val[i].append(dict())
+        bnd_val[i].append({b'gas': dict(), b'cer':dict()})
         bnd_idx[i].append({b'gas': dict(), b"cer": dict()})
         exist_directions[i].append(list())
 
@@ -179,12 +177,14 @@ for i in range(treg):
         if j > 0:
             i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j - 1)
             regl = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-            bnd_val[i][j]['l'] = (lft_val(reg) + rht_val(regl)) / 2
+            bnd_val[i][j][b'gas']['l'] = (lft_val(reg) + rht_val(regl)) / 2
+            bnd_val[i][j][b'cer']['l'] = sc.zeros_like(lft_val(reg))
             exist_directions[i][j].append("l")
             bnd_idx[i][j][b'gas']['l'] = bnd_idx[i][j - 1][b'gas']['r']
             bnd_idx[i][j][b'cer']['l'] = bnd_idx[i][j - 1][b'cer']['r']
         else:
-            bnd_val[i][j]['l'] = lft_val(reg)
+            bnd_val[i][j][b'gas']['l'] = lft_val(reg)
+            bnd_val[i][j][b'cer']['l'] = sc.zeros_like(lft_val(reg))
             exist_directions[i][j].append("l")
             bnd_idx[i][j][b'gas']['l'] = -1
             bnd_idx[i][j][b'cer']['l'] = -1
@@ -193,30 +193,33 @@ for i in range(treg):
         if j < xreg - 1:
             i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j + 1)
             regr = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-            bnd_val[i][j]['r'] = (rht_val(reg) + lft_val(regr)) / 2
+            bnd_val[i][j][b'gas']['r'] = (rht_val(reg) + lft_val(regr)) / 2
+            bnd_val[i][j][b'cer']['r'] = sc.zeros_like(rht_val(reg))
             exist_directions[i][j].append("r")
-            bnd_idx[i][j][b'gas']['r'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j]['r']))
-            constr_id += len(bnd_val[i][j]['r'])
-            bnd_idx[i][j][b'cer']['r'] = sc.arange(constr_id, constr_id + len(bnd_val[i][j]['r']))
-            constr_id += len(bnd_val[i][j]['r'])
+            bnd_idx[i][j][b'gas']['r'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j][b'gas']['r']))
+            constr_id += len(bnd_val[i][j][b'gas']['r'])
+            bnd_idx[i][j][b'cer']['r'] = sc.arange(constr_id, constr_id + len(bnd_val[i][j][b'gas']['r']))
+            constr_id += len(bnd_val[i][j][b'gas']['r'])
 
 
         if i > 0:
             i_part0, i_part1, j_part0, j_part1 = ut.slice(i - 1, j)
             regt = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-            bnd_val[i][j]['t'] = (top_val(reg) + dwn_val(regt)) / 2
+            bnd_val[i][j][b'gas']['t'] = (top_val(reg) + dwn_val(regt)) / 2
+            bnd_val[i][j][b'cer']['t'] = sc.zeros_like(top_val(reg))
             exist_directions[i][j].append("t")
             bnd_idx[i][j][b'gas']['t'] = bnd_idx[i-1][j][b'gas']['b']
             bnd_idx[i][j][b'cer']['t'] = bnd_idx[i - 1][j][b'cer']['b']
         if i < treg - 1:
             i_part0, i_part1, j_part0, j_part1 = ut.slice(i + 1, j)
             regb = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-            bnd_val[i][j]['b'] = (dwn_val(reg) + top_val(regb)) / 2
+            bnd_val[i][j][b'gas']['b'] = (dwn_val(reg) + top_val(regb)) / 2
+            bnd_val[i][j][b'cer']['b'] = sc.zeros_like(dwn_val(reg))
             exist_directions[i][j].append("b")
-            bnd_idx[i][j][b'gas']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j]['b']))
-            constr_id += len(bnd_val[i][j]['b'])
-            bnd_idx[i][j][b'cer']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j]['b']))
-            constr_id += len(bnd_val[i][j]['b'])
+            bnd_idx[i][j][b'gas']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j][b'gas']['b']))
+            constr_id += len(bnd_val[i][j][b'gas']['b'])
+            bnd_idx[i][j][b'cer']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j][b'gas']['b']))
+            constr_id += len(bnd_val[i][j][b'gas']['b'])
 
 
 residual = 0
