@@ -33,10 +33,11 @@ tbltype = sc.dtype([('coord', sc.float64, 2),
                     ('val', sc.float64),
                     ('coeff', sc.float64, 2 * 10),
                     ('dual', sc.float64),
-                    ('region_id',sc.int64)])
+                    ('region_id', sc.int64),
+                    ('constr_id', sc.int64)])
 
 
-def add_constraints_block(chain, coords, sign, ptype, etype, fnc, test_val):
+def add_constraints_block(chain, coords, sign, ptype, etype, fnc, test_val, bnd_idx):
     task = sc.zeros(len(coords[ptype]), tbltype)
     task['coord'] = coords[ptype]
 
@@ -53,23 +54,24 @@ def add_constraints_block(chain, coords, sign, ptype, etype, fnc, test_val):
     vals = signv*fnc[etype](coords[ptype])
     task['coeff'] = vals[:, 1:]
     task['val'] = vals[:, 0]
+    task['constr_id'] = bnd_idx
     chain.append(task)
 
 
-def add_constraints_residual(chain, coords, ptype, etype, fnc, test_val = 0):
-    add_constraints_block(chain, coords, '+', ptype, etype, fnc, test_val)
-    add_constraints_block(chain, coords, '-', ptype, etype, fnc, test_val)
+def add_constraints_residual(chain, coords, ptype, etype, fnc, test_val = 0, bnd_idx=-1):
+    add_constraints_block(chain, coords, '+', ptype, etype, fnc, test_val, bnd_idx)
+    add_constraints_block(chain, coords, '-', ptype, etype, fnc, test_val, bnd_idx)
 
 
 def add_constraints_internal(chain, coords, etype, fnc):
     add_constraints_residual(chain, coords, 'i', etype, fnc)
 
-def add_one_constraints_boundary(chain, coords, etype, fnc, test_val,exist_directions):
+def add_one_constraints_boundary(chain, coords, etype, fnc, test_val,exist_directions, bnd_idx):
     for ptype in exist_directions:
-        add_constraints_residual(chain, coords, ptype, etype, fnc, test_val[ptype])
-def add_constraints_boundary(chain, coords, etypes, fnc, test_val, exist_directions):
+        add_constraints_residual(chain, coords, ptype, etype, fnc, test_val[ptype], bnd_idx[ptype])
+def add_constraints_boundary(chain, coords, etypes, fnc, test_val, exist_directions, bnd_idx):
     for etype in etypes:
-        add_one_constraints_boundary(chain, coords, etype, fnc, test_val, exist_directions)
+        add_one_constraints_boundary(chain, coords, etype, fnc, test_val, exist_directions, bnd_idx[etype])
 
 tg, tc = ut.make_gas_cer_pair(2, 3)
 
@@ -132,7 +134,7 @@ xreg, treg = 3, 3
 cnt_var = 2
 degree = 3
 X = sc.linspace(0, 1, 50)
-T = sc.linspace(0, 1, 50)
+T = sc.linspace(0, 50, 50)
 
 X_part = sc.split(X, (17, 33))
 T_part = sc.split(T, (17, 33))
@@ -145,7 +147,9 @@ xt_vals_zero = sc.zeros_like(xt_vals_gas_revr)
 
 xt_vals_gas = sc.vstack([xt_vals_gas_prim, xt_vals_gas_revr])
 
+print (xt_vals_gas)
 
+exit()
 def lft_val(x):
     return x[0, :]
 def rht_val(x):
@@ -157,11 +161,15 @@ def dwn_val(x):
 
 bnd_val = list()
 exist_directions = list()
+bnd_idx = list()
+constr_id = 0
 for i in range(treg):
     bnd_val.append(list())
     exist_directions.append(list())
+    bnd_idx.append(list())
     for j in range(xreg):
         bnd_val[i].append(dict())
+        bnd_idx[i].append({b'gas': dict(), b"cer": dict()})
         exist_directions[i].append(list())
 
         i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j)
@@ -173,26 +181,43 @@ for i in range(treg):
             regl = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
             bnd_val[i][j]['l'] = (lft_val(reg) + rht_val(regl)) / 2
             exist_directions[i][j].append("l")
+            bnd_idx[i][j][b'gas']['l'] = bnd_idx[i][j - 1][b'gas']['r']
+            bnd_idx[i][j][b'cer']['l'] = bnd_idx[i][j - 1][b'cer']['r']
         else:
             bnd_val[i][j]['l'] = lft_val(reg)
             exist_directions[i][j].append("l")
+            bnd_idx[i][j][b'gas']['l'] = -1
+            bnd_idx[i][j][b'cer']['l'] = -1
+
 
         if j < xreg - 1:
             i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j + 1)
             regr = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
             bnd_val[i][j]['r'] = (rht_val(reg) + lft_val(regr)) / 2
             exist_directions[i][j].append("r")
+            bnd_idx[i][j][b'gas']['r'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j]['r']))
+            constr_id += len(bnd_val[i][j]['r'])
+            bnd_idx[i][j][b'cer']['r'] = sc.arange(constr_id, constr_id + len(bnd_val[i][j]['r']))
+            constr_id += len(bnd_val[i][j]['r'])
+
 
         if i > 0:
             i_part0, i_part1, j_part0, j_part1 = ut.slice(i - 1, j)
             regt = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
             bnd_val[i][j]['t'] = (top_val(reg) + dwn_val(regt)) / 2
             exist_directions[i][j].append("t")
+            bnd_idx[i][j][b'gas']['t'] = bnd_idx[i-1][j][b'gas']['b']
+            bnd_idx[i][j][b'cer']['t'] = bnd_idx[i - 1][j][b'cer']['b']
         if i < treg - 1:
             i_part0, i_part1, j_part0, j_part1 = ut.slice(i + 1, j)
             regb = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
             bnd_val[i][j]['b'] = (dwn_val(reg) + top_val(regb)) / 2
             exist_directions[i][j].append("b")
+            bnd_idx[i][j][b'gas']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j]['b']))
+            constr_id += len(bnd_val[i][j]['b'])
+            bnd_idx[i][j][b'cer']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j]['b']))
+            constr_id += len(bnd_val[i][j]['b'])
+
 
 residual = 0
 from pprint import pprint
@@ -222,9 +247,12 @@ for i in range(treg):
         add_constraints_internal(chain, xt, b'balance_eq1', funcs)
         add_constraints_internal(chain, xt, b'balance_eq2', funcs)
         add_constraints_boundary(chain, xt, [b'gas', b'cer'],
-                                 funcs, bnd_val[i][j], exist_directions[i][j])
+                                 funcs, bnd_val[i][j], exist_directions[i][j], bnd_idx[i][j])
         qq = rfn.stack_arrays(chain, usemask=False)
         task[i].append(qq)
+
+
+
 
 solve=True
 iter = 0
@@ -259,6 +287,7 @@ while solve:
                 lambda x: tgt(x),
                 signature="(m)->(k)")
             task[i][j]['val'] = fnc(task[i][j]['coord'])[:, 0]
+            print(x)
 
     print("{:*^200}".format("ITER {}".format(iter)))
     print("{:*^200}".format("RESIDUAL: {}".format(residual)))
@@ -286,82 +315,45 @@ while solve:
                     break
                 niter += 1
                 # eq['region_id'] = reg_id
-                if eq['ptype'] == b'i':
+                #if eq['ptype'] == b'i':
                 #     cnstr_count += 1
                 # else:
-                    new_task.append(eq)
+                new_task.append(eq)
+                new_task[-1]['constr_id'] = -1
             reg_id += 1
-
-    new_vals = list()
-    for i in range(treg):
-        new_vals.append(list())
-        for j in range(xreg):
-            q = task[i][j]
-            left_mask = q['ptype'] == b'l'
-            right_mask = q['ptype'] == b'r'
-            top_mask = q['ptype'] == b't'
-            bottom_mask = q['ptype'] == b'b'
-
-            new_val = sc.zeros_like(q['val'])
-            if j > 0:
-                qn = task[i][j-1]
-                nbr_mask = qn['ptype'] == b'r'
-                new_val[left_mask] = (q[left_mask]['val'] + qn[nbr_mask]['val'])/2
-            else:
-                new_val[left_mask] = q[left_mask]['val']
-
-            if j < xreg - 1:
-                qn = task[i][j+1]
-                nbr_mask = qn['ptype'] == b'l'
-                new_val[right_mask] = (q[right_mask]['val'] + qn[nbr_mask]['val'])/2
-
-            if i > 0:
-                qn = task[i-1][j]
-                nbr_mask = qn['ptype'] == b'b'
-                new_val[top_mask] = (q[top_mask]['val'] + qn[nbr_mask]['val'])/2
-
-            if i < treg - 1:
-                qn = task[i+1][j]
-                nbr_mask = qn['ptype'] == b't'
-                new_val[bottom_mask] = (q[bottom_mask]['val'] + qn[nbr_mask]['val'])/2
-            new_val *= q['sign']
-            # outinfo = [q['test_val'], new_val, abs(q['test_val'] - new_val)]
-            # outinfo = [q['dual'], q['slack']]
-            # sc.savetxt('iter{}_out{}{}'.format(iter, i, j),sc.vstack(outinfo).T)
-            new_vals[i].append(new_val)
-
 
 
     for i in range(treg):
         for j in range(xreg):
             for eq in task[i][j]:
-                if eq['ptype'] != b'i':
+                if eq['constr_id'] != -1:
                     cnstr_count += 1
                     new_task.append(eq)
 
     new_task = sc.array(new_task)
-    print(len(new_task))
 
     prb = list()
     constr_idx = 0
+    ccc= 0
     for eq in new_task:
         shift = eq['region_id']
         psize = len(eq['coeff'])
         lzeros = sc.zeros(psize * shift)
         rzeros = sc.zeros((reg_id - shift) * psize)
-
-        pars = sc.zeros(cnstr_count)
-        if eq['ptype'] != b'i':
-            pars[constr_idx] = 1
-            constr_idx += 1
-        line = sc.hstack([[0],lzeros, eq['coeff'], rzeros, pars])
+        pars = sc.zeros(constr_id)
+        if eq['constr_id'] == -1:
+            line = sc.hstack([[eq['test_val']],lzeros, eq['coeff'], rzeros, pars])
+        else:
+            pars[eq['constr_id']] = eq['sign']
+            line = sc.hstack([[0], lzeros, eq['coeff'], rzeros, pars])
         prb.append(line)
-
     prb = sc.vstack(prb)
     lp_dim = psize * (reg_id + 1) + len(pars) + 1
-    x, xd = lut.slvlprd(prb, lp_dim, xdop)
-    print(x)
+    x, xd = lut.slvlprd(prb, lp_dim, xdop, True)
 
+    print(x)
+    sc.savetxt("outxd", xd.T)
+    sc.savetxt("outx", x.T)
     exit()
     print ("{:*^200}".format("REMAKE TASK"))
 

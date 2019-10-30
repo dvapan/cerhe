@@ -2,7 +2,7 @@ from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 import scipy as sc
 
-def slvlprd(prb, lp_dim, xdop):
+def slvlprd(prb, lp_dim, xdop, flag=False):
     """Solve linear problem with one residual by cylp"""
     s = CyClpSimplex()
     x = s.addVariable('x', lp_dim)
@@ -11,6 +11,32 @@ def slvlprd(prb, lp_dim, xdop):
     prb = xdop_ar + prb
     A = prb[:, 1:]
     A = sc.hstack((A, sc.ones((len(A), 1))))
+    A = sc.matrix(A)
+    b = prb[:, 0]
+    print(b)
+
+    b = xdop - b
+    b = CyLPArray(b)
+    s += A*x >= b
+    s += x[lp_dim-1] >= 0
+    s += x[lp_dim-1] <= xdop
+    s.objective = x[-1]
+    s.dual()
+    outx = s.primalVariableSolution['x']
+    if flag:
+        sc.savetxt("dat",A,fmt="%+16.5f")
+        sc.savetxt("datb",b,fmt="%+16.5f")
+    return outx, abs(A.dot(outx) - b)
+
+def slvlprdd(prb, lp_dim, xdop):
+    """Solve linear problem with one residual by cylp"""
+    s = CyClpSimplex()
+    x = s.addVariable('x', lp_dim)
+    xdop_ar = sc.zeros(lp_dim+1)
+    xdop_ar[0] = xdop
+    prb = xdop_ar + prb
+    A = prb[:, 1:]
+    #A = sc.hstack((A, sc.ones((len(A), 1))))
     A = sc.matrix(A)
     b = prb[:, 0]
 
