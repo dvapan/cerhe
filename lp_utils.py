@@ -13,7 +13,6 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
     A = sc.hstack((A, sc.ones((len(A), 1))))
     A = sc.matrix(A)
     b = prb[:, 0]
-    print(b)
 
     b = xdop - b
     b = CyLPArray(b)
@@ -26,7 +25,7 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
     if flag:
         sc.savetxt("dat",A,fmt="%+16.5f")
         sc.savetxt("datb",b,fmt="%+16.5f")
-    return outx, abs(A.dot(outx) - b)
+    return outx, A.dot(outx)
 
 def slvlprdd(prb, lp_dim, xdop):
     """Solve linear problem with one residual by cylp"""

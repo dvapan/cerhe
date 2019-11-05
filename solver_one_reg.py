@@ -164,36 +164,10 @@ bnd_val = list()
 exist_directions = list()
 bnd_idx = list()
 constr_id = 0
-for i in range(treg):
-    bnd_val.append(list())
-    exist_directions.append(list())
-    bnd_idx.append(list())
-    for j in range(xreg):
-        bnd_val[i].append({b'gas': dict(), b'cer': dict()})
-        bnd_idx[i].append({b'gas': dict(), b"cer": dict()})
-        exist_directions[i].append(list())
-
-        i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j)
-
-        reg = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-
-        if j > 0:
-            i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j - 1)
-            regl = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-            bnd_val[i][j][b'gas']['l'] = (lft_val(reg) + rht_val(regl)) / 2
-#            bnd_val[i][j][b'cer']['l'] = (lft_val(reg) + rht_val(regl)) / 2
-            bnd_val[i][j][b'cer']['l'] = sc.zeros_like(lft_val(reg))
-            exist_directions[i][j].append("l")
-            bnd_idx[i][j][b'gas']['l'] = bnd_idx[i][j - 1][b'gas']['r']
-            bnd_idx[i][j][b'cer']['l'] = bnd_idx[i][j - 1][b'cer']['r']
-        else:
-            bnd_val[i][j][b'gas']['l'] = lft_val(reg)
-#            bnd_val[i][j][b'cer']['l'] = lft_val(reg)
-            bnd_val[i][j][b'cer']['l'] = sc.zeros_like(lft_val(reg))
-            exist_directions[i][j].append("l")
-            bnd_idx[i][j][b'gas']['l'] = -1
-            bnd_idx[i][j][b'cer']['l'] = -1
-
+bnd_val = {b'gas': dict(), b'cer': dict()}
+bnd_idx = {b'gas': dict(), b"cer": dict()}
+exist_directions = list()
+bnd_val[b'gas']['l'] = TGZ
 
         if j < xreg - 1:
             i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j + 1)

@@ -144,6 +144,8 @@ xt_vals_zero = sc.zeros_like(xt_vals_gas_revr)
 
 xt_vals_gas = sc.vstack([xt_vals_gas_prim, xt_vals_gas_revr])
 
+print(list(map(len,X_part)))
+exit()
 
 def lft_val(x):
     return x[0, :]
