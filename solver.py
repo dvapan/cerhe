@@ -145,7 +145,6 @@ xt_vals_zero = sc.zeros_like(xt_vals_gas_revr)
 xt_vals_gas = sc.vstack([xt_vals_gas_prim, xt_vals_gas_revr])
 
 print(list(map(len,X_part)))
-exit()
 
 def lft_val(x):
     return x[0, :]
@@ -226,6 +225,7 @@ for i in range(treg):
                                  funcs, bnd_val[i][j], exist_directions[i][j])
         qq = rfn.stack_arrays(chain, usemask=False)
         task[i].append(qq)
+        
 
 solve=True
 iter = 0
@@ -233,26 +233,14 @@ iter = 0
 data = [1]
 
 while solve:
-    q = task[0][0]
-    q1 = q[q['ptype'] == 'r']['val']
-    q = task[0][1]
-    q2 = q[q['ptype'] == 'l']['val']
-
     iter += 1
     residual = 0
     for i in range(treg):
         for j in range(xreg):
             print("solve region",i,j)
-            x, xd, xs = slvrd(task[i][j])
-
-            #xs = sc.array(list(xs.values())[0])
-            xd = sc.array(list(xd.values())[0])
-            task[i][j]['dual'] = xd
-            task[i][j]['slack'] = xs
+            x, xd = slvrd(task[i][j])
+            
             q = task[i][j]
-            outinfo = [q['dual'], q['slack']]
-            sc.savetxt('iter{}_out{}{}'.format(iter, i, j), sc.vstack(outinfo).T)
-
             print(x[-1])
             residual = max(residual, x[-1])
 
@@ -260,15 +248,31 @@ while solve:
             fnc = sc.vectorize(
                 lambda x: tgt(x),
                 signature="(m)->(k)")
+            fnc2 = sc.vectorize(
+                lambda x: tct(x),
+                signature="(m)->(k)")
+
+            print("LPARAM:",fnc(task[i][j]['coord'])[:, 0] - fnc2(task[i][j]['coord'])[:, 0])
+            eq = sc.vectorize(
+                lambda x: coef["k2"] * (tg(x, [1, 0]) * coef["wg"] + tg(x, [0, 1])),
+                signature="(m)->(k)")
+            eq2 = sc.vectorize(
+                lambda x:  coef["k1"] - coef["k3"] * tc(x, [0, 1]),
+                signature="(m)->(k)")
+            print("RPARAM:",eq(task[i][j]['coord'])[:, 0])
+            
+            
             task[i][j]['val'] = fnc(task[i][j]['coord'])[:, 0]
 
     print("{:*^200}".format("ITER {}".format(iter)))
     print("{:*^200}".format("RESIDUAL: {}".format(residual)))
     print("{:*^200}".format("DELTA: {}".format(residual - data[-1])))
-    data.append(residual)
-    file = open("dat","a")
-    file.write(str(data[-1])+"\n")
-    file.close()
+    # data.append(residual)
+    # file = open("dat","a")
+    # file.write(str(data[-1])+"\n")
+    # file.close()
+    sc.savetxt("outxd", xd.T,fmt="%+16.5f")
+    sc.savetxt("outx", x.T,fmt="%+16.5f")
     exit()
     if abs(residual) < 1e-5:
         break

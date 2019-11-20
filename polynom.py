@@ -71,13 +71,14 @@ def nsum(x):
 
 
 def construct_element(x, pow_i, num_deriv):
+    from numpy import power
     dpow_i = pow_i - num_deriv
     filtered = dpow_i
     dpow_i = sc.piecewise(dpow_i,
                           [dpow_i >= 0, dpow_i < 0],
                           [lambda x: x, 0])
     coeff = vfact_div(pow_i, filtered)
-    return coeff * sc.power(x, dpow_i)
+    return coeff * power(x, dpow_i)
 
 
 @lru_cache()

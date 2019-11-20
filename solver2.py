@@ -34,7 +34,8 @@ tbltype = sc.dtype([('coord', sc.float64, 2),
                     ('coeff', sc.float64, 2 * 10),
                     ('dual', sc.float64),
                     ('region_id', sc.int64),
-                    ('constr_id', sc.int64)])
+                    ('constr_id', sc.int64),
+])
 
 
 def add_constraints_block(chain, coords, sign, ptype, etype, fnc, test_val, bnd_idx):
@@ -132,7 +133,7 @@ def slvrdn(tsk, bnd):
 def slvrd_coord(tsk):
     pass
 
-xdop = 1
+xdop = 1800
 xreg, treg = 3, 3
 cnt_var = 2
 degree = 3
@@ -263,108 +264,120 @@ for i in range(treg):
         task[i].append(qq)
 
 
-# #######################################CERAMIC2GAS
-# bnd_val = list()
-# exist_directions = list()
-# bnd_idx = list()
-# constr_id = 0
-# for i in range(treg):
-#     bnd_val.append(list())
-#     exist_directions.append(list())
-#     bnd_idx.append(list())
-#     for j in range(xreg):
-#         bnd_val[i].append({b'gas': dict(), b'cer': dict()})
-#         bnd_idx[i].append({b'gas': dict(), b"cer": dict()})
-#         exist_directions[i].append(list())
-#
-#         i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j)
-#
-#         reg = xt_vals_gas_revr[i_part0:i_part1, j_part0:j_part1]
-#
-#         if j > 0:
-#             i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j - 1)
-#             regl = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-#             bnd_val[i][j][b'gas']['l'] = (lft_val(reg) + rht_val(regl)) / 2
-# #            bnd_val[i][j][b'cer']['l'] = (lft_val(reg) + rht_val(regl)) / 2
-#             bnd_val[i][j][b'cer']['l'] = sc.zeros_like(lft_val(reg))
-#             exist_directions[i][j].append("l")
-#             bnd_idx[i][j][b'gas']['l'] = bnd_idx[i][j - 1][b'gas']['r']
-#             bnd_idx[i][j][b'cer']['l'] = bnd_idx[i][j - 1][b'cer']['r']
-#         else:
-#             bnd_val[i][j][b'gas']['l'] = lft_val(reg)
-# #            bnd_val[i][j][b'cer']['l'] = lft_val(reg)
-#             bnd_val[i][j][b'cer']['l'] = sc.zeros_like(lft_val(reg))
-#             exist_directions[i][j].append("l")
-#             bnd_idx[i][j][b'gas']['l'] = -1
-#             bnd_idx[i][j][b'cer']['l'] = -1
-#
-#
-#         if j < xreg - 1:
-#             i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j + 1)
-#             regr = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-#             bnd_val[i][j][b'gas']['r'] = (rht_val(reg) + lft_val(regr)) / 2
-# #            bnd_val[i][j][b'cer']['r'] = (rht_val(reg) + lft_val(regr)) / 2
-#             bnd_val[i][j][b'cer']['r'] = sc.zeros_like(rht_val(reg))
-#             exist_directions[i][j].append("r")
-#             bnd_idx[i][j][b'gas']['r'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j][b'gas']['r']))
-#             constr_id += len(bnd_val[i][j][b'gas']['r'])
-#             bnd_idx[i][j][b'cer']['r'] = sc.arange(constr_id, constr_id + len(bnd_val[i][j][b'gas']['r']))
-#             constr_id += len(bnd_val[i][j][b'gas']['r'])
-#
-#
-#         if i > 0:
-#             i_part0, i_part1, j_part0, j_part1 = ut.slice(i - 1, j)
-#             regt = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-#             bnd_val[i][j][b'gas']['t'] = (top_val(reg) + dwn_val(regt)) / 2
-# #            bnd_val[i][j][b'cer']['t'] = (top_val(reg) + dwn_val(regt)) / 2
-#             bnd_val[i][j][b'cer']['t'] = sc.zeros_like(top_val(reg))
-#             exist_directions[i][j].append("t")
-#             bnd_idx[i][j][b'gas']['t'] = bnd_idx[i-1][j][b'gas']['b']
-#             bnd_idx[i][j][b'cer']['t'] = bnd_idx[i - 1][j][b'cer']['b']
-#         if i < treg - 1:
-#             i_part0, i_part1, j_part0, j_part1 = ut.slice(i + 1, j)
-#             regb = xt_vals_gas[i_part0:i_part1, j_part0:j_part1]
-#             bnd_val[i][j][b'gas']['b'] = (dwn_val(reg) + top_val(regb)) / 2
-# #            bnd_val[i][j][b'cer']['b'] = (dwn_val(reg) + top_val(regb)) / 2
-#             bnd_val[i][j][b'cer']['b'] = sc.zeros_like(dwn_val(reg))
-#             exist_directions[i][j].append("b")
-#             bnd_idx[i][j][b'gas']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j][b'gas']['b']))
-#             constr_id += len(bnd_val[i][j][b'gas']['b'])
-#             bnd_idx[i][j][b'cer']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j][b'gas']['b']))
-#             constr_id += len(bnd_val[i][j][b'gas']['b'])
+#######################################CERAMIC2GAS
+bnd_val = list()
+exist_directions = list()
+bnd_idx = list()
+constr_id = 0
+for i in range(treg):
+    bnd_val.append(list())
+    exist_directions.append(list())
+    bnd_idx.append(list())
+    for j in range(xreg):
+        bnd_val[i].append({b'gas': dict(), b'cer': dict()})
+        bnd_idx[i].append({b'gas': dict(), b"cer": dict()})
+        exist_directions[i].append(list())
 
-#
-# residual = 0
-# from pprint import pprint
-# taskr = list()
-# for i in range(treg):
-#     taskr.append(list())
-#     for j in range(xreg):
-#         print("prepare region", i, j, ":", exist_directions[i][j])
-#         xv, tv = sc.meshgrid(X_part[j], T_part[i])
-#         xv = xv.reshape(-1)
-#         tv = tv.reshape(-1)
-#
-#         xt = ut.boundary_coords((X_part[j], T_part[i]))
-#         xt['i'] = sc.vstack([xv, tv]).T
-#
-#         i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j)
-#
-#         reg = xt_vals_gas_revr[i_part0:i_part1, j_part0:j_part1]
-#         bound_vals = dict({
-#             'l': reg[0, :],
-#             'r': reg[-1, :],
-#             't': reg[:, 0],
-#             'b': reg[:, -1]
-#         })
-#
-#         chain = list()
-#         add_constraints_internal(chain, xt, b'balance_eq3', funcs)
-#         add_constraints_internal(chain, xt, b'balance_eq1', funcs)
-#         add_constraints_boundary(chain, xt, [b'gas', b'cer'],
-#                                  funcs, bnd_val[i][j], exist_directions[i][j], bnd_idx[i][j])
-#         qq = rfn.stack_arrays(chain, usemask=False)
-#         taskr[i].append(qq)
+        i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j)
+
+        reg = xt_vals_gas_revr[i_part0:i_part1, j_part0:j_part1]
+
+for i in range(treg):
+    bnd_val.append(list())
+    exist_directions.append(list())
+    bnd_idx.append(list())
+    for j in range(xreg):
+        bnd_val[i].append({b'gas': dict(), b'cer': dict()})
+        bnd_idx[i].append({b'gas': dict(), b"cer": dict()})
+        exist_directions[i].append(list())
+
+        i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j)
+
+        reg = xt_vals_gas_revr[i_part0:i_part1, j_part0:j_part1]
+
+        if j > 0:
+            i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j - 1)
+            regl = xt_vals_gas_revr[i_part0:i_part1, j_part0:j_part1]
+            bnd_val[i][j][b'gas']['l'] = (lft_val(reg) + rht_val(regl)) / 2
+#            bnd_val[i][j][b'cer']['l'] = (lft_val(reg) + rht_val(regl)) / 2
+            bnd_val[i][j][b'cer']['l'] = sc.zeros_like(lft_val(reg))
+            exist_directions[i][j].append("l")
+            bnd_idx[i][j][b'gas']['l'] = bnd_idx[i][j - 1][b'gas']['r']
+            bnd_idx[i][j][b'cer']['l'] = bnd_idx[i][j - 1][b'cer']['r']
+        else:
+            bnd_val[i][j][b'gas']['l'] = lft_val(reg)
+#            bnd_val[i][j][b'cer']['l'] = lft_val(reg)
+            bnd_val[i][j][b'cer']['l'] = sc.zeros_like(lft_val(reg))
+            exist_directions[i][j].append("l")
+            bnd_idx[i][j][b'gas']['l'] = -1
+            bnd_idx[i][j][b'cer']['l'] = -1
+
+
+        if j < xreg - 1:
+            i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j + 1)
+            regr = xt_vals_gas_revr[i_part0:i_part1, j_part0:j_part1]
+            bnd_val[i][j][b'gas']['r'] = (rht_val(reg) + lft_val(regr)) / 2
+#            bnd_val[i][j][b'cer']['r'] = (rht_val(reg) + lft_val(regr)) / 2
+            bnd_val[i][j][b'cer']['r'] = sc.zeros_like(rht_val(reg))
+            exist_directions[i][j].append("r")
+            bnd_idx[i][j][b'gas']['r'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j][b'gas']['r']))
+            constr_id += len(bnd_val[i][j][b'gas']['r'])
+            bnd_idx[i][j][b'cer']['r'] = sc.arange(constr_id, constr_id + len(bnd_val[i][j][b'gas']['r']))
+            constr_id += len(bnd_val[i][j][b'gas']['r'])
+
+
+        if i > 0:
+            i_part0, i_part1, j_part0, j_part1 = ut.slice(i - 1, j)
+            regt = xt_vals_gas_revr[i_part0:i_part1, j_part0:j_part1]
+            bnd_val[i][j][b'gas']['t'] = (top_val(reg) + dwn_val(regt)) / 2
+#            bnd_val[i][j][b'cer']['t'] = (top_val(reg) + dwn_val(regt)) / 2
+            bnd_val[i][j][b'cer']['t'] = sc.zeros_like(top_val(reg))
+            exist_directions[i][j].append("t")
+            bnd_idx[i][j][b'gas']['t'] = bnd_idx[i-1][j][b'gas']['b']
+            bnd_idx[i][j][b'cer']['t'] = bnd_idx[i - 1][j][b'cer']['b']
+        if i < treg - 1:
+            i_part0, i_part1, j_part0, j_part1 = ut.slice(i + 1, j)
+            regb = xt_vals_gas_revr[i_part0:i_part1, j_part0:j_part1]
+            bnd_val[i][j][b'gas']['b'] = (dwn_val(reg) + top_val(regb)) / 2
+#            bnd_val[i][j][b'cer']['b'] = (dwn_val(reg) + top_val(regb)) / 2
+            bnd_val[i][j][b'cer']['b'] = sc.zeros_like(dwn_val(reg))
+            exist_directions[i][j].append("b")
+            bnd_idx[i][j][b'gas']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j][b'gas']['b']))
+            constr_id += len(bnd_val[i][j][b'gas']['b'])
+            bnd_idx[i][j][b'cer']['b'] = sc.arange(constr_id,constr_id+len(bnd_val[i][j][b'gas']['b']))
+            constr_id += len(bnd_val[i][j][b'gas']['b'])
+
+residual = 0
+from pprint import pprint
+taskr = list()
+for i in range(treg):
+    taskr.append(list())
+    for j in range(xreg):
+        print("prepare region", i, j, ":", exist_directions[i][j])
+        xv, tv = sc.meshgrid(X_part[j], T_part[i])
+        xv = xv.reshape(-1)
+        tv = tv.reshape(-1)
+
+        xt = ut.boundary_coords((X_part[j], T_part[i]))
+        xt['i'] = sc.vstack([xv, tv]).T
+
+        i_part0, i_part1, j_part0, j_part1 = ut.slice(i, j)
+
+        reg = xt_vals_gas_revr[i_part0:i_part1, j_part0:j_part1]
+        bound_vals = dict({
+            'l': reg[0, :],
+            'r': reg[-1, :],
+            't': reg[:, 0],
+            'b': reg[:, -1]
+        })
+
+        chain = list()
+        add_constraints_internal(chain, xt, b'balance_eq3', funcs)
+        add_constraints_internal(chain, xt, b'balance_eq2', funcs)
+        add_constraints_boundary(chain, xt, [b'gas', b'cer'],
+                                 funcs, bnd_val[i][j], exist_directions[i][j], bnd_idx[i][j])
+        qq = rfn.stack_arrays(chain, usemask=False)
+        taskr[i].append(qq)
 
 
 solve=True
@@ -390,24 +403,55 @@ while solve:
             print(x[-1])
             residual = max(residual, x[-1])
 
+            tgt, tct = ut.make_gas_cer_pair(2, 3, x[:10], x[10:-1])
+            fnc = sc.vectorize(
+                lambda x: tgt(x),
+                signature="(m)->(k)")
+            fnc2 = sc.vectorize(
+                lambda x: tct(x),
+                signature="(m)->(k)")
 
-    # for i in range(treg):
-    #     for j in range(xreg):
-    #         print("solve region",i,j)
-    #         x, xval = slvrd(taskr[i][j])
-    #
-    #         taskr[i][j]['val'] = xval
-    #
-    #         print(x[-1])
-    #         residual = max(residual, x[-1])
+            eq = sc.vectorize(
+                lambda x: coef["k2"] * (tgt(x, [1, 0]) * coef["wg"] + tgt(x, [0, 1])),
+                signature="(m)->(k)")
+            eq2 = sc.vectorize(
+                lambda x:  coef["k1"] - coef["k3"] * tct(x, [0, 1]),
+                signature="(m)->(k)")
+
+
+
+    for i in range(treg):
+        for j in range(xreg):
+            print("solve region",i,j)
+            x, xval = slvrd(taskr[i][j])
+
+            taskr[i][j]['val'] = xval
+
+            print(x[-1])
+            residual = max(residual, x[-1])
+
+            tgt, tct = ut.make_gas_cer_pair(2, 3, x[:10], x[10:-1])
+            fnc = sc.vectorize(
+                lambda x: tgt(x),
+                signature="(m)->(k)")
+            fnc2 = sc.vectorize(
+                lambda x: tct(x),
+                signature="(m)->(k)")
+
+            eq = sc.vectorize(
+                lambda x: coef["k2"] * (tgt(x, [1, 0]) * coef["wg"] + tgt(x, [0, 1])),
+                signature="(m)->(k)")
+            eq2 = sc.vectorize(
+                lambda x:  coef["k1"] - coef["k3"] * tct(x, [0, 1]),
+                signature="(m)->(k)")
+
+
+
 
     print("{:*^200}".format("ITER {}".format(iter)))
     print("{:*^200}".format("RESIDUAL: {}".format(residual)))
     print("{:*^200}".format("DELTA: {}".format(residual - data[-1])))
     data.append(residual)
-    file = open("dat","a")
-    file.write(str(data[-1])+"\n")
-    file.close()
 
     if abs(residual) < 1e-5:
         break
@@ -426,10 +470,6 @@ while solve:
                 if niter >= N:
                     break
                 niter += 1
-                # eq['region_id'] = reg_id
-                #if eq['ptype'] == b'i':
-                #     cnstr_count += 1
-                # else:
                 new_task.append(eq)
                 new_task[-1]['constr_id'] = -1
             reg_id += 1
@@ -463,7 +503,6 @@ while solve:
     lp_dim = psize * (reg_id) + len(pars) + 1
     x, xd = lut.slvlprd(prb, lp_dim, xdop, True)
 
-    print(x)
     sc.savetxt("outxd", xd.T,fmt="%+16.5f")
     sc.savetxt("outx", x.T,fmt="%+16.5f")
     exit()

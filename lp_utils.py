@@ -2,6 +2,11 @@ from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 import scipy as sc
 
+TGZ = 1800
+TBZ = 778.17
+
+VBND = 10**3
+
 def slvlprd(prb, lp_dim, xdop, flag=False):
     """Solve linear problem with one residual by cylp"""
     s = CyClpSimplex()
@@ -17,6 +22,9 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
     b = xdop - b
     b = CyLPArray(b)
     s += A*x >= b
+    for i in range(lp_dim-1):
+        s += x[i] >= -VBND
+        s += x[i] <= VBND
     s += x[lp_dim-1] >= 0
     s += x[lp_dim-1] <= xdop
     s.objective = x[-1]
