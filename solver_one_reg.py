@@ -169,9 +169,6 @@ bnd_idx = {b'gas': dict(), b"cer": dict()}
 exist_directions = list()
 bnd_val[b'gas']['l'] = TGZ
 
-
-
-
 residual = 0
 from pprint import pprint
 task = list()
@@ -204,73 +201,24 @@ for i in range(treg):
         qq = rfn.stack_arrays(chain, usemask=False)
         task[i].append(qq)
 
-solve=True
-iter = 0
-
-data = [1]
-
-while solve:
-    q = task[0][0]
-    q1 = q[q['ptype'] == 'r']['val']
-    q = task[0][1]
-    q2 = q[q['ptype'] == 'l']['val']
-
-    iter += 1
-    residual = 0
-    for i in range(treg):
-        for j in range(xreg):
-            print("solve region",i,j)
-            x, xval = slvrd(task[i][j])
-
-            task[i][j]['val'] = xval
-
-            print(x[-1])
-            residual = max(residual, x[-1])
-
-
-    # for i in range(treg):
-    #     for j in range(xreg):
-    #         print("solve region",i,j)
-    #         x, xval = slvrd(taskr[i][j])
-    #
-    #         taskr[i][j]['val'] = xval
-    #
-    #         print(x[-1])
-    #         residual = max(residual, x[-1])
-
-    print("{:*^200}".format("ITER {}".format(iter)))
-    print("{:*^200}".format("RESIDUAL: {}".format(residual)))
-    print("{:*^200}".format("DELTA: {}".format(residual - data[-1])))
-    data.append(residual)
-    file = open("dat","a")
-    file.write(str(data[-1])+"\n")
-    file.close()
-
-    if abs(residual) < 1e-5:
-        break
-    print ("{:*^200}".format("UPDATE VALS"))
-
-    N = 25
-    new_task = list()
-    reg_id = 0
-    cnstr_count = 0
-    for i in range(treg):
-        for j in range(xreg):
-            task[i][j]['region_id'] = reg_id
-            q = sc.sort(task[i][j], order='dual')
-            niter = 0
-            for eq in q:
-                if niter >= N:
-                    break
-                niter += 1
-                # eq['region_id'] = reg_id
-                #if eq['ptype'] == b'i':
-                #     cnstr_count += 1
-                # else:
-                new_task.append(eq)
-                new_task[-1]['constr_id'] = -1
+new_task = list()
+reg_id = 0
+cnstr_count = 0
+for i in range(treg):
+    for j in range(xreg):
+        task[i][j]['region_id'] = reg_id
+        for eq in task[i][j]:
+            new_task.append(eq)
+            new_task[-1]['constr_id'] = -1
             reg_id += 1
 
+for i in range(treg):
+    for j in range(xreg):
+        task[i][j]['region_id'] = reg_id
+        for eq in task[i][j]:
+            new_task.append(eq)
+            new_task[-1]['constr_id'] = -1
+            reg_id += 1
 
     for i in range(treg):
         for j in range(xreg):
@@ -295,10 +243,10 @@ while solve:
         else:
             pars[eq['constr_id']] = -eq['sign']
             line = sc.hstack([[0], lzeros, eq['coeff'], rzeros, pars])
-        prb.append(line)
-    prb = sc.vstack(prb)
-    lp_dim = psize * (reg_id) + len(pars) + 1
-    x, xd = lut.slvlprd(prb, lp_dim, xdop, True)
+            prb.append(line)
+            prb = sc.vstack(prb)
+            lp_dim = psize * (reg_id) + len(pars) + 1
+            x, xd = lut.slvlprd(prb, lp_dim, xdop, True)
 
     print(x)
     sc.savetxt("outxd", xd.T,fmt="%+16.5f")
