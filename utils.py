@@ -1,8 +1,11 @@
 import scipy as sc
+from itertools import *
 # noinspection PyUnresolvedReferences
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 from polynom import Polynom, Context
+
+xreg, treg = 3, 3
 
 def left_boundary_coords(x):
     lx = sc.full_like(x[1], x[0][0])
@@ -54,3 +57,83 @@ def slice(j,i):
     j_part0 = splitter[j]
     j_part1 = splitter[j + 1]
     return i_part0, i_part1, j_part0, j_part1
+
+
+def split(name, reg1, reg2):
+    return zip(repeat(name), product(range(reg1), range(reg2)))
+
+
+def split_slice1(name, reg1, reg2):
+    return zip(repeat(name), product(range(1, reg1), range(reg2)))
+
+
+def split_slice2(name, reg1, reg2):
+    return zip(repeat(name), product(range(reg1), range(1, reg2)))
+
+
+def split_fix1(name, reg1, reg2):
+    return zip(repeat(name), product(range(reg1 - 1, reg1), range(reg2)))
+
+
+def split_fix2(name, reg1, reg2):
+    return zip(repeat(name), product(range(reg1), range(reg2 - 1, reg2)))
+
+def cast_type(seq,type):
+    return zip(repeat(type), seq)
+
+def balance_constraints(eqs, pol1, pol2):
+    return product(eqs,
+                   zip(
+                       cast_type(split(pol1, xreg, treg), "i"),
+                       cast_type(split(pol2, xreg, treg), "i")))
+
+
+def start_constraints(eqs, pol1, base, regid, type):
+    return product(eqs,
+                   zip(
+                       cast_type(split_fix1(pol1, regid, treg), type),
+                       cast_type(repeat((base, (0, 0))), "c")))
+
+
+def intereg_constraints(eqs, pol1):
+    return chain(product(eqs,
+                         zip(
+                             cast_type(split(pol1, xreg, treg),"r"),
+                             cast_type(split_slice1(pol1, xreg, treg),"l")),
+                 product(eqs,
+                         zip(
+                             cast_type(split(pol1, xreg, treg),"r"),
+                             cast_type(split_slice2(pol1, xreg, treg),"l")))))
+
+
+def intemod_constraints(eqs, pol1, pol2):
+    return chain(product(eqs,
+                         zip(
+                             cast_type(split_fix1(pol1, 1, treg),"l"),
+                             cast_type(split_fix1(pol2, xreg, treg), "r"))),
+                 product(eqs,
+                         zip(
+                            cast_type(split_fix1(pol1, xreg, treg), "r"),
+                            cast_type(split_fix1(pol2, 1, treg), "l"))))
+
+def construct_mode(beqs, base, base_id,  type, pols):
+    return chain(
+        balance_constraints(beqs,
+                            pols[0], pols[1]),
+        start_constraints(['gas'], pols[0], base, base_id, type),
+        product(["gas"],
+                zip(
+                    cast_type(split(pols[0], xreg, treg), "r"),
+                    cast_type(split_slice1(pols[0], xreg, treg), "l"))),
+        product(["gas"],
+                zip(
+                    cast_type(split(pols[1], xreg, treg), "r"),
+                    cast_type(split_slice2(pols[1], xreg, treg), "l"))),
+        product(["cer"],
+        zip(
+            cast_type(split(pols[0], xreg, treg), "r"),
+            cast_type(split_slice1(pols[0], xreg, treg), "l"))),
+        product(["cer"],
+        zip(
+            cast_type(split(pols[1], xreg, treg), "r"),
+            cast_type(split_slice2(pols[1], xreg, treg), "l"))))

@@ -15,7 +15,10 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
     xdop_ar[0] = xdop
     prb = xdop_ar + prb
     A = prb[:, 1:]
-    A = sc.hstack((A, sc.ones((len(A), 1))))
+    ons=sc.ones((len(A), 1))
+    ons[:227]*=200
+    ons[227:]*=10
+    A = sc.hstack((A, ons))
     A = sc.matrix(A)
     b = prb[:, 0]
 
@@ -33,6 +36,9 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
     if flag:
         sc.savetxt("dat",A,fmt="%+16.5f")
         sc.savetxt("datb",b,fmt="%+16.5f")
+        tt = A.dot(outx)
+        print(tt.max())
+        sc.savetxt("otkl",tt.T, fmt="%16.5f")
     return outx, A.dot(outx)
 
 def slvlprdd(prb, lp_dim, xdop):
