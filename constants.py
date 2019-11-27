@@ -18,16 +18,16 @@ TGZ = 1800
 TBZ = 778.17
 
 coef = dict()
-coef["alpha"] = 0.027 * time
-coef["fyd"] = 2262.0 * length
+coef["alpha"] = 0.027 
+coef["fyd"] = 2262.0 
 coef["po"] = 1.0
 coef["fgib"] = 5.0
-coef["wg"] = 1.5 * time
+coef["wg"] = 1.5 
 coef["cg"] = 0.3
-coef["lam"] = 0.0038 * time * length
-coef["a"] = 2.3e-6 * time
+coef["lam"] = 0.0038 
+coef["a"] = 2.3e-6
 coef["ck"] = 0.3
-coef["qmacyd"] = 29405.0 * length
+coef["qmacyd"] = 29405.0 
 
 coef["k1"] = coef["alpha"] * coef["fyd"]
 coef["k2"] = coef["po"] * coef["fgib"] * coef["cg"]

@@ -32,8 +32,8 @@ funcsr = dict({
 })
 
 
-balance_coeff = 1
-temp_coeff = 1
+balance_coeff = 200
+temp_coeff = 10
 
 eq_resid=dict({
     'be1': balance_coeff,
@@ -129,7 +129,7 @@ def main():
                                                'base_1', 1, "l",
                                                ['gas_p', 'cer_p']),
                              ut.construct_mode(['be2', 'be3'],
-                                               'base_2', ut.xreg, "r",
+                                               'base_2', xreg, "r",
                                                ['gas_r', 'cer_r']),
                              ut.intemod_constraints(['cer'], "cer_p", "cer_r")))))
 
