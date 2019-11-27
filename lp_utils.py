@@ -9,37 +9,27 @@ VBND = 10**3
 
 def slvlprd(prb, lp_dim, xdop, flag=False):
     """Solve linear problem with one residual by cylp"""
+    print("LOAD TO LP")
     s = CyClpSimplex()
     x = s.addVariable('x', lp_dim)
-    xdop_ar = sc.zeros(lp_dim)
-    xdop_ar[0] = xdop
-    prb = xdop_ar + prb
+    xdop_ar = sc.zeros(lp_dim + 1)
     A = prb[:, 1:]
-    ons=sc.ones((len(A), 1))
-    ons[:227]*=200
-    ons[227:]*=10
-    A = sc.hstack((A, ons))
     A = sc.matrix(A)
     b = prb[:, 0]
-
-    b = xdop - b
     b = CyLPArray(b)
     s += A*x >= b
-    for i in range(lp_dim-1):
-        s += x[i] >= -VBND
-        s += x[i] <= VBND
     s += x[lp_dim-1] >= 0
-    s += x[lp_dim-1] <= xdop
-    s.objective = x[-1]
+    s += x[lp_dim-1] <= TGZ
+    s.objective = x[lp_dim-1]
+    print ("START")
     s.dual()
     outx = s.primalVariableSolution['x']
     if flag:
         sc.savetxt("dat",A,fmt="%+16.5f")
         sc.savetxt("datb",b,fmt="%+16.5f")
         tt = A.dot(outx)
-        print(tt.max())
         sc.savetxt("otkl",tt.T, fmt="%16.5f")
-    return outx, A.dot(outx)
+    return outx, A.dot(outx) - b, s.dualConstraintSolution["R_1"]
 
 def slvlprdd(prb, lp_dim, xdop):
     """Solve linear problem with one residual by cylp"""

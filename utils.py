@@ -4,8 +4,7 @@ from itertools import *
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 from polynom import Polynom, Context
-
-xreg, treg = 3, 3
+from constants import xreg,treg
 
 def left_boundary_coords(x):
     lx = sc.full_like(x[1], x[0][0])
@@ -49,6 +48,28 @@ def make_gas_cer_pair(count_var, degree, gas_coeffs=None, cer_coeffs=None):
     context_test.assign(cer)
     return gas, cer
 
+def make_gas_cer_quad(count_var, degree, gas_coeffs=None, cer_coeffs=None, gasr_coeffs=None, cerr_coeffs=None):
+    cer = Polynom(count_var, degree)
+    gas = Polynom(count_var, degree)
+    cerr = Polynom(count_var, degree)
+    gasr = Polynom(count_var, degree)
+
+    if gas_coeffs is not None:
+        gas.coeffs = gas_coeffs
+    if cer_coeffs is not None:
+        cer.coeffs = cer_coeffs
+    if gasr_coeffs is not None:
+        gasr.coeffs = gasr_coeffs
+    if cerr_coeffs is not None:
+        cerr.coeffs = cerr_coeffs
+    context_test = Context()
+    context_test.assign(gas)
+    context_test.assign(cer)
+    context_test.assign(gasr)
+    context_test.assign(cerr)
+    return gas, cer, gasr, cerr
+
+
 splitter = (0, 17, 33, 50)
 
 def slice(j,i):
@@ -68,7 +89,7 @@ def split_slice1(name, reg1, reg2):
 
 
 def split_slice2(name, reg1, reg2):
-    return zip(repeat(name), product(range(reg1), range(1, reg2)))
+    return zip(repeat(name), ((j,i) for i in range(1,reg2) for j in range(reg1)))
 
 
 def split_fix1(name, reg1, reg2):
@@ -103,7 +124,7 @@ def intereg_constraints(eqs, pol1):
                  product(eqs,
                          zip(
                              cast_type(split(pol1, xreg, treg),"r"),
-                             cast_type(split_slice2(pol1, xreg, treg),"l")))))
+                             cast_type(split_slice1(pol1, xreg, treg),"l")))))
 
 
 def intemod_constraints(eqs, pol1, pol2):
@@ -127,13 +148,13 @@ def construct_mode(beqs, base, base_id,  type, pols):
                     cast_type(split_slice1(pols[0], xreg, treg), "l"))),
         product(["gas"],
                 zip(
-                    cast_type(split(pols[1], xreg, treg), "r"),
-                    cast_type(split_slice2(pols[1], xreg, treg), "l"))),
+                    cast_type(split(pols[1], xreg, treg), "b"),
+                    cast_type(split_slice1(pols[1], xreg, treg), "t"))),
         product(["cer"],
-        zip(
-            cast_type(split(pols[0], xreg, treg), "r"),
-            cast_type(split_slice1(pols[0], xreg, treg), "l"))),
+                zip(
+                    cast_type(split(pols[0], xreg, treg), "r"),
+                    cast_type(split_slice1(pols[0], xreg, treg), "l"))),
         product(["cer"],
-        zip(
-            cast_type(split(pols[1], xreg, treg), "r"),
-            cast_type(split_slice2(pols[1], xreg, treg), "l"))))
+                zip(
+                    cast_type(split(pols[1], xreg, treg), "b"),
+                    cast_type(split_slice1(pols[1], xreg, treg), "t"))))

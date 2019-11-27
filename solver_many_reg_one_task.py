@@ -1,14 +1,57 @@
 import scipy as sc
 from itertools import *
+from functools import *
 from pprint import pprint
 import utils as ut
 import lp_utils as lut
+
+from constants import *
+
+
+tg, tc, tgr, tcr = ut.make_gas_cer_quad(2, 3)
+
+funcs = dict({
+    'be1' : lambda x: (tg(x) - tc(x)) * coef["k1"] + coef["k2"] * (tg(x, [1, 0]) * coef["wg"] + tg(x, [0, 1])),
+    'be2' : lambda x: (tg(x) - tc(x)) * coef["k1"] - coef["k2"] * (tg(x, [1, 0]) * coef["wg"] + tg(x, [0, 1])),
+    'be3' : lambda x: (tg(x) - tc(x)) * coef["k1"] - coef["k3"] * tc(x, [0, 1]),
+    'gas' : lambda x: tg(x),
+    'dxgas' : lambda x: tg(x, [1, 0]),
+    'dtgas' : lambda x: tg(x, [0, 1]),
+    'cer' : lambda x: tc(x),
+    'dtcer' : lambda x: tc(x, [0, 1]),
+})
+funcsr = dict({
+    'be1' : lambda x: (tgr(x) - tcr(x)) * coef["k1"] + coef["k2"] * (tgr(x, [1, 0]) * coef["wg"] + tgr(x, [0, 1])),
+    'be2' : lambda x: (tgr(x) - tcr(x)) * coef["k1"] - coef["k2"] * (tgr(x, [1, 0]) * coef["wg"] + tgr(x, [0, 1])),
+    'be3' : lambda x: (tgr(x) - tcr(x)) * coef["k1"] - coef["k3"] * tcr(x, [0, 1]),
+    'gas' : lambda x: tgr(x),
+    'dxgas' : lambda x: tgr(x, [1, 0]),
+    'dtgas' : lambda x: tgr(x, [0, 1]),
+    'cer' : lambda x: tcr(x),
+    'dtcer' : lambda x: tcr(x, [0, 1]),
+})
+
+
+balance_coeff = 1
+temp_coeff = 1
+
+eq_resid=dict({
+    'be1': balance_coeff,
+    'be2': balance_coeff,
+    'be3': balance_coeff,
+    'gas':temp_coeff,
+    'dxgas':temp_coeff,
+    'dtgas':temp_coeff,
+    'cer':temp_coeff,
+    'dtcer':temp_coeff,
+})
+
 
 def parse_reg(pr):
     if type(pr) is str:
         return pr
     else:
-        return pr[0] + "_" + "".join(map(str, pr[1]))
+        return pr[0]+pr[1][0] + "_" + str(make_id(pr[1][1]))
 
 def make_coords(ids,type):
     i, j = ids
@@ -16,32 +59,88 @@ def make_coords(ids,type):
     xv = xv.reshape(-1)
     tv = tv.reshape(-1)
 
-    if type in "lrtb":
-        xt = ut.boundary_coords((X_part[j], T_part[i]))[type]
+    if type in "lr":
+        xt = ut.boundary_coords((X_part[i], T_part[j]))[type]
+    elif type in "tb":
+        xt = ut.boundary_coords((X_part[j], T_part[i]))[type]        
     elif type == "i":
         xt = sc.vstack([xv, tv]).T
+    elif type == "c":
+        xt = None
+    global index_info
+    global cnt_var
+    cnt_var=len(xt)
     return xt
 
+def shifted(cffs,shift):
+    psize = len(cffs[1:])
+    lzeros = sc.zeros(psize * shift)
+    rzeros = sc.zeros((max_reg - shift-1) * psize)
+    cffs = sc.hstack([cffs[0],lzeros,cffs[1:],rzeros])
+    return cffs
+    
+
+def count_eq(eq,rg, val):
+    ind = make_id(rg[1][1])
+    crds = make_coords(rg[1][1],rg[0])
+    if rg[1][0].endswith("_p"):
+        fnc = funcs
+    elif rg[1][0].endswith("_r"):
+        fnc = funcsr
+    g = lambda x:shifted(fnc[eq](x),ind)
+    cffs = sc.vstack(list(map(g, crds)))
+    r_cffs = sc.full((1,len(cffs[:,0])),eq_resid[eq])
+    cffs[:,0] =  val - cffs[:,0]
+    cffs = sc.vstack([sc.hstack([ cffs,r_cffs.reshape((-1,1))]),
+                      sc.hstack([-cffs,r_cffs.reshape((-1,1))])])
+    return cffs
+
+
+
+def make_id(x):
+    return x[0]*treg + x[1]
+    
 def parse(eq, regs):
-    crds = (make_coords(rg[1][1],rg[0]) for rg in regs)
-    print(list(crds))
     print(eq + " : " + " ".join(map(parse_reg, regs)))
-    return
+    if eq in ['be1','be2','be3']:
+        out = count_eq(eq,regs[0],0)
+    elif regs[1][1][0].startswith('base'):
+        if regs[0][1][0].endswith("_p"):
+            T = TGZ
+        else:
+            T = TBZ
+        out = count_eq(eq,regs[0],T)
+    else:
+        x1 = count_eq(eq,regs[0],0)
+        x2 = count_eq(eq,regs[1],0)
+        out = x2 - x1
+        out[:,-1] = x1[:,-1]
+    global index_info
+#    print (index_info, index_info+2*cnt_var)
+    index_info += 2*cnt_var
+    return out
 
+def main():
 
-X = sc.linspace(0, 1, 50)
-T = sc.linspace(0, 1, 50)
-X_part = sc.split(X, (17, 33))
-T_part = sc.split(T, (17, 33))
+    print ("PREPARE_PROBLEM")
+    q=sc.vstack(list(starmap(parse,
+                         chain(
+                             ut.construct_mode(['be1', 'be3'],
+                                               'base_1', 1, "l",
+                                               ['gas_p', 'cer_p']),
+                             ut.construct_mode(['be2', 'be3'],
+                                               'base_2', ut.xreg, "r",
+                                               ['gas_r', 'cer_r']),
+                             ut.intemod_constraints(['cer'], "cer_p", "cer_r")))))
 
-tg, tc = ut.make_gas_cer_pair(2, 3)
+    x,dx,dz = lut.slvlprd(q, 40*max_reg+1, TGZ, True)
 
-pprint(list(starmap(parse,
-                    chain(
-                        ut.construct_mode(['be1', 'be3'],
-                                       'base_1', 1, "l",
-                                       ['gas_p', 'cer_p']),
-                        ut.construct_mode(['be2', 'be3'],
-                                       'base_2', ut.xreg, "r",
-                                       ['gas_r', 'cer_r']),
-                        ut.intemod_constraints(['cer'], "cer_p", "cer_r")))))
+    pc = sc.split(x[:-1],max_reg)
+
+    sc.savetxt("poly_coeff",pc)
+    sc.savetxt("resd",dz.reshape(-1,1))
+
+if __name__ == "__main__":
+    main()
+
+         
