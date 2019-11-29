@@ -130,12 +130,12 @@ def intereg_constraints(eqs, pol1):
 def intemod_constraints(eqs, pol1, pol2):
     return chain(product(eqs,
                          zip(
-                             cast_type(split_fix1(pol1, 1, treg),"l"),
-                             cast_type(split_fix1(pol2, xreg, treg), "r"))),
+                             cast_type(split_fix2(pol1, xreg, 1),"t"),
+                             cast_type(split_fix2(pol2, xreg, treg), "b"))),
                  product(eqs,
                          zip(
-                            cast_type(split_fix1(pol1, xreg, treg), "r"),
-                            cast_type(split_fix1(pol2, 1, treg), "l"))))
+                            cast_type(split_fix2(pol1, xreg, treg), "b"),
+                            cast_type(split_fix2(pol2, xreg, 1), "t"))))
 
 def construct_mode(beqs, base, base_id,  type, pols):
     return chain(
@@ -148,11 +148,11 @@ def construct_mode(beqs, base, base_id,  type, pols):
                     cast_type(split_slice1(pols[0], xreg, treg), "l"))),
         product(["gas"],
                 zip(
-                    cast_type(split(pols[1], xreg, treg), "b"),
+                    cast_type(split(pols[0], xreg, treg), "b"),
                     cast_type(split_slice1(pols[1], xreg, treg), "t"))),
         product(["cer"],
                 zip(
-                    cast_type(split(pols[0], xreg, treg), "r"),
+                    cast_type(split(pols[1], xreg, treg), "r"),
                     cast_type(split_slice1(pols[0], xreg, treg), "l"))),
         product(["cer"],
                 zip(

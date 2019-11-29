@@ -15,14 +15,14 @@ class TestPolynom(unittest.TestCase):
                       [1,0],
                       [1,1]])
         ans = sc.array([1,6,11,21])
-        sct.assert_equal(ans, self.poly.fx(x))
+        sct.assert_equal(ans, sc.fromiter(map(self.poly.fx,x),int))
 
     def test_fx_var_coeffs(self):
         x = sc.array([[0,0],
                       [1,1]])
         fx = sc.array([[1,1,0,0,0,0,0],
                        [21,1,1,1,1,1,1]])
-        sct.assert_equal(fx, self.poly.fx_var(x))
+        sct.assert_equal(fx, sc.vstack(list(map(self.poly.fx_var,x))))
 
     def test_fx_deriv(self):
         test_data = {}
@@ -33,13 +33,13 @@ class TestPolynom(unittest.TestCase):
         fx = sc.array([[4,0,0,0,1,0,0],
                       [21, 0,0,0,1,1,2]])
         deriv = [1,0]
-        sct.assert_equal(fx, self.poly.fx_var(x, deriv))
+        sct.assert_equal(fx, sc.vstack(list(map(lambda xx: self.poly.fx_var(xx, deriv),x))))
         deriv = [0,1]
         x = sc.array([[0,0],
                       [1,1]])
         fx = sc.array([[2,0,1,0,0,0,0],
                        [13,0,1,2,0,1,0]])
-        sct.assert_equal(fx, self.poly.fx_var(x, deriv))
+        sct.assert_equal(fx, sc.vstack(list(map(lambda xx:self.poly.fx_var(xx, deriv),x))))
 
     def test_scipy_array_equals(self):
         self.assertTrue(sc.any(sc.arange(10) == sc.arange(10)))

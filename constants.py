@@ -2,17 +2,20 @@ import scipy as sc
 
 import utils as ut
 
-xreg,treg = 5,5
+xreg,treg = 1,1
 max_reg = xreg*treg
-X = sc.linspace(0, 1, 50)
-T = sc.linspace(1, 50, 50)
+
+length = 1
+time = 50
+
+
+X = sc.linspace(0, length, 100)
+T = sc.linspace(0, time, 100)
 X_part = sc.split(X, xreg)
 T_part = sc.split(T, treg)
 index_info = 0
 cnt_var = 0
 
-length = 1
-time = 50
 
 TGZ = 1800
 TBZ = 778.17
@@ -32,5 +35,4 @@ coef["qmacyd"] = 29405.0
 coef["k1"] = coef["alpha"] * coef["fyd"]
 coef["k2"] = coef["po"] * coef["fgib"] * coef["cg"]
 coef["k3"] = coef["ck"] * coef["qmacyd"]
-
 

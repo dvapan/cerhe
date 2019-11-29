@@ -2,8 +2,8 @@ from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 import scipy as sc
 
-TGZ = 1800
-TBZ = 778.17
+#TGZ = 1800
+#TBZ = 778.17
 
 VBND = 10**3
 
@@ -19,7 +19,7 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
     b = CyLPArray(b)
     s += A*x >= b
     s += x[lp_dim-1] >= 0
-    s += x[lp_dim-1] <= TGZ
+    s += x[lp_dim-1] <= xdop
     s.objective = x[lp_dim-1]
     print ("START")
     s.dual()

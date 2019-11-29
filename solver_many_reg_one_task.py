@@ -12,7 +12,6 @@ tg, tc, tgr, tcr = ut.make_gas_cer_quad(2, 3)
 
 funcs = dict({
     'be1' : lambda x: (tg(x) - tc(x)) * coef["k1"] + coef["k2"] * (tg(x, [1, 0]) * coef["wg"] + tg(x, [0, 1])),
-    'be2' : lambda x: (tg(x) - tc(x)) * coef["k1"] - coef["k2"] * (tg(x, [1, 0]) * coef["wg"] + tg(x, [0, 1])),
     'be3' : lambda x: (tg(x) - tc(x)) * coef["k1"] - coef["k3"] * tc(x, [0, 1]),
     'gas' : lambda x: tg(x),
     'dxgas' : lambda x: tg(x, [1, 0]),
@@ -21,7 +20,6 @@ funcs = dict({
     'dtcer' : lambda x: tc(x, [0, 1]),
 })
 funcsr = dict({
-    'be1' : lambda x: (tgr(x) - tcr(x)) * coef["k1"] + coef["k2"] * (tgr(x, [1, 0]) * coef["wg"] + tgr(x, [0, 1])),
     'be2' : lambda x: (tgr(x) - tcr(x)) * coef["k1"] - coef["k2"] * (tgr(x, [1, 0]) * coef["wg"] + tgr(x, [0, 1])),
     'be3' : lambda x: (tgr(x) - tcr(x)) * coef["k1"] - coef["k3"] * tcr(x, [0, 1]),
     'gas' : lambda x: tgr(x),
@@ -32,7 +30,7 @@ funcsr = dict({
 })
 
 
-balance_coeff = 200
+balance_coeff = 20
 temp_coeff = 10
 
 eq_resid=dict({
@@ -51,7 +49,7 @@ def parse_reg(pr):
     if type(pr) is str:
         return pr
     else:
-        return pr[0]+pr[1][0] + "_" + str(make_id(pr[1][1]))
+        return pr[0]+pr[1][0] + "_" + str(pr[1][1])
 
 def make_coords(ids,type):
     i, j = ids
@@ -67,9 +65,9 @@ def make_coords(ids,type):
         xt = sc.vstack([xv, tv]).T
     elif type == "c":
         xt = None
-    global index_info
-    global cnt_var
-    cnt_var=len(xt)
+    # global index_info
+    # global cnt_var
+    # cnt_var=len(xt)
     return xt
 
 def shifted(cffs,shift):
@@ -89,10 +87,11 @@ def count_eq(eq,rg, val):
         fnc = funcsr
     g = lambda x:shifted(fnc[eq](x),ind)
     cffs = sc.vstack(list(map(g, crds)))
-    r_cffs = sc.full((1,len(cffs[:,0])),eq_resid[eq])
+    r_cffs = sc.full((1,len(cffs[:,0])),1)
     cffs[:,0] =  val - cffs[:,0]
+    cffs /= eq_resid[eq]
     cffs = sc.vstack([sc.hstack([ cffs,r_cffs.reshape((-1,1))]),
-                      sc.hstack([-cffs,r_cffs.reshape((-1,1))])])
+                      sc.hstack([-cffs,r_cffs.reshape((-1,1))])])        
     return cffs
 
 
@@ -101,7 +100,7 @@ def make_id(x):
     return x[0]*treg + x[1]
     
 def parse(eq, regs):
-    print(eq + " : " + " ".join(map(parse_reg, regs)))
+#    print(eq + " : " + " ".join(map(parse_reg, regs)))
     if eq in ['be1','be2','be3']:
         out = count_eq(eq,regs[0],0)
     elif regs[1][1][0].startswith('base'):
@@ -115,15 +114,14 @@ def parse(eq, regs):
         x2 = count_eq(eq,regs[1],0)
         out = x2 - x1
         out[:,-1] = x1[:,-1]
-    global index_info
-#    print (index_info, index_info+2*cnt_var)
-    index_info += 2*cnt_var
     return out
+
+
 
 def main():
 
     print ("PREPARE_PROBLEM")
-    q=sc.vstack(list(starmap(parse,
+    q = sc.vstack(list(starmap(parse,
                          chain(
                              ut.construct_mode(['be1', 'be3'],
                                                'base_1', 1, "l",
@@ -133,7 +131,7 @@ def main():
                                                ['gas_r', 'cer_r']),
                              ut.intemod_constraints(['cer'], "cer_p", "cer_r")))))
 
-    x,dx,dz = lut.slvlprd(q, 40*max_reg+1, TGZ, True)
+    x,dx,dz = lut.slvlprd(q, 40*max_reg+1, TGZ,False)
 
     pc = sc.split(x[:-1],max_reg)
 
