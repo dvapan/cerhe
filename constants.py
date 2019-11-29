@@ -2,15 +2,15 @@ import scipy as sc
 
 import utils as ut
 
-xreg,treg = 1,1
+xreg,treg = 3,3
 max_reg = xreg*treg
 
 length = 1
 time = 50
 
 
-X = sc.linspace(0, length, 100)
-T = sc.linspace(0, time, 100)
+X = sc.linspace(0, length, 30)
+T = sc.linspace(0, time, 30)
 X_part = sc.split(X, xreg)
 T_part = sc.split(T, treg)
 index_info = 0

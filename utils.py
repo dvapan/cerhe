@@ -87,9 +87,8 @@ def split(name, reg1, reg2):
 def split_slice1(name, reg1, reg2):
     return zip(repeat(name), product(range(1, reg1), range(reg2)))
 
-
 def split_slice2(name, reg1, reg2):
-    return zip(repeat(name), ((j,i) for i in range(1,reg2) for j in range(reg1)))
+    return zip(repeat(name), product(range(0, reg1), range(1,reg2)))
 
 
 def split_fix1(name, reg1, reg2):
@@ -144,17 +143,17 @@ def construct_mode(beqs, base, base_id,  type, pols):
         start_constraints(['gas'], pols[0], base, base_id, type),
         product(["gas"],
                 zip(
-                    cast_type(split(pols[0], xreg, treg), "r"),
+                    cast_type(split(pols[0], xreg-1, treg), "r"),
                     cast_type(split_slice1(pols[0], xreg, treg), "l"))),
         product(["gas"],
                 zip(
-                    cast_type(split(pols[0], xreg, treg), "b"),
-                    cast_type(split_slice1(pols[1], xreg, treg), "t"))),
+                    cast_type(split(pols[0], xreg, treg-1), "b"),
+                    cast_type(split_slice2(pols[0], xreg, treg), "t"))),
         product(["cer"],
                 zip(
-                    cast_type(split(pols[1], xreg, treg), "r"),
-                    cast_type(split_slice1(pols[0], xreg, treg), "l"))),
+                    cast_type(split(pols[1], xreg-1, treg), "r"),
+                    cast_type(split_slice1(pols[1], xreg, treg), "l"))),
         product(["cer"],
                 zip(
-                    cast_type(split(pols[1], xreg, treg), "b"),
-                    cast_type(split_slice1(pols[1], xreg, treg), "t"))))
+                    cast_type(split(pols[1], xreg, treg-1), "b"),
+                    cast_type(split_slice2(pols[1], xreg, treg), "t"))))

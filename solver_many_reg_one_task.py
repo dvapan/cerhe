@@ -65,9 +65,6 @@ def make_coords(ids,type):
         xt = sc.vstack([xv, tv]).T
     elif type == "c":
         xt = None
-    # global index_info
-    # global cnt_var
-    # cnt_var=len(xt)
     return xt
 
 def shifted(cffs,shift):
@@ -100,7 +97,7 @@ def make_id(x):
     return x[0]*treg + x[1]
     
 def parse(eq, regs):
-#    print(eq + " : " + " ".join(map(parse_reg, regs)))
+    print(eq + " : " + " ".join(map(parse_reg, regs)))
     if eq in ['be1','be2','be3']:
         out = count_eq(eq,regs[0],0)
     elif regs[1][1][0].startswith('base'):
@@ -109,7 +106,7 @@ def parse(eq, regs):
         else:
             T = TBZ
         out = count_eq(eq,regs[0],T)
-    else:
+    else:            
         x1 = count_eq(eq,regs[0],0)
         x2 = count_eq(eq,regs[1],0)
         out = x2 - x1
