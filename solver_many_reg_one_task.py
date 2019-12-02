@@ -53,14 +53,14 @@ def parse_reg(pr):
 
 def make_coords(ids,type):
     i, j = ids
-    xv, tv = sc.meshgrid(X_part[j], T_part[i])
+    xv, tv = sc.meshgrid(X_part[i], T_part[j])
     xv = xv.reshape(-1)
     tv = tv.reshape(-1)
 
     if type in "lr":
         xt = ut.boundary_coords((X_part[i], T_part[j]))[type]
     elif type in "tb":
-        xt = ut.boundary_coords((X_part[j], T_part[i]))[type]        
+        xt = ut.boundary_coords((X_part[i], T_part[j]))[type]        
     elif type == "i":
         xt = sc.vstack([xv, tv]).T
     elif type == "c":
@@ -86,6 +86,7 @@ def count_eq(eq,rg, val):
     cffs = sc.vstack(list(map(g, crds)))
     r_cffs = sc.full((1,len(cffs[:,0])),1)
     cffs[:,0] =  val - cffs[:,0]
+
     cffs /= eq_resid[eq]
     cffs = sc.vstack([sc.hstack([ cffs,r_cffs.reshape((-1,1))]),
                       sc.hstack([-cffs,r_cffs.reshape((-1,1))])])        
@@ -111,6 +112,15 @@ def parse(eq, regs):
         x2 = count_eq(eq,regs[1],0)
         out = x2 - x1
         out[:,-1] = x1[:,-1]
+
+        crds = make_coords(regs[0][1][1],regs[0][0])
+        crds1 = make_coords(regs[1][1][1],regs[1][0])
+
+        g = lambda x:"({}) ({})".format("{:3.2f},{:3.2f}".format(*x[0]),"{:3.2f},{:3.2f}".format(*x[1]))
+        g1 = lambda x:fnc[eq](x)[0]
+        g2 = lambda x:fnc1[eq](x)[0]
+        print("\n".join(list(map(g,zip(crds,crds1)))))
+
     return out
 
 

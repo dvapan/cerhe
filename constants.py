@@ -8,7 +8,6 @@ max_reg = xreg*treg
 length = 1
 time = 50
 
-
 X = sc.linspace(0, length, 30)
 T = sc.linspace(0, time, 30)
 X_part = sc.split(X, xreg)
