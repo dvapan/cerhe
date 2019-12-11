@@ -157,3 +157,4 @@ def construct_mode(beqs, base, base_id,  type, pols):
                 zip(
                     cast_type(split(pols[1], xreg, treg-1), "b"),
                     cast_type(split_slice2(pols[1], xreg, treg), "t"))))
+

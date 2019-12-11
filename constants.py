@@ -2,14 +2,16 @@ import scipy as sc
 
 import utils as ut
 
-xreg,treg = 3,3
+xreg,treg = 1,1
 max_reg = xreg*treg
 
-length = 1
-time = 50
+length = 1                      # Длина теплообменника                   | [м]
+time = 20                       # Время работы теплообменника            | [с]
+radius = 0.01                   # Радиус заполнителя (керамический шарик)| [м]
 
 X = sc.linspace(0, length, 30)
 T = sc.linspace(0, time, 30)
+R = sc.linspace(0.001, radius, 5)
 X_part = sc.split(X, xreg)
 T_part = sc.split(T, treg)
 index_info = 0
