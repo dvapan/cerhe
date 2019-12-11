@@ -5,6 +5,7 @@ from cylp.py.modeling.CyLPModel import CyLPArray
 import numpy.testing as sct
 
 
+
 class TestCylp(unittest.TestCase):
     def test_connection(self):
         s = CyClpSimplex()
