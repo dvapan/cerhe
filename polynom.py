@@ -5,16 +5,21 @@ import scipy as sc
 class Context:
     def __init__(self):
         self.count = 0
-        self.variables = dict()
+        self.dvariables = dict()
+        self.lvariables = list()
         self.expr = lambda x, y: 0
 
     def assign(self, variable):
-        self.variables[variable] = self.count
+        self.dvariables[variable] = self.count
+        self.lvariables.append(variable)
         variable.owner = self
         self.count += 1
 
     def index_of(self, var):
-        return self.variables.get(var)
+        return self.dvariables.get(var)
+
+    def at(self, var_ind):
+        return self.lvariables[var_ind]
 
     def eval(self, x, deriv=None):
         return self.expr(x, deriv)
@@ -45,10 +50,13 @@ class Polynom:
         if self.owner is None:
             return sc.hstack([val, self.var_coeffs])
         else:
-            size = self.coeff_size*self.owner.count
-            shift = self.coeff_size*self.owner.index_of(self)
-            lzeros = sc.zeros( shift)
-            rzeros = sc.zeros(size - self.coeff_size - shift)
+            cff_cnt = [v.coeff_size for v in self.owner.lvariables]
+            size = sum(cff_cnt)
+            shift_ind = self.owner.index_of(self)
+            lzeros = sum((cff_cnt[i] for i in range(shift_ind)))
+            rzeros = sum((cff_cnt[i] for i in range(shift_ind+1,self.owner.count)))
+            lzeros = sc.zeros(lzeros)
+            rzeros = sc.zeros(rzeros)
             return sc.hstack([val, lzeros, self.var_coeffs, rzeros])
 
 
