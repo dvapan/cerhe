@@ -27,10 +27,8 @@ print(regsize)
 funcs = dict({
     'gas2gas' : lambda x: (tgp(x[:-1]) - tcp(x)) * coef["k1"] + coef["k2"] * (tgp(x[:-1], [1, 0]) * coef["wg"] + tgp(x[:-1], [0, 1])),
     'gas2cer' : lambda x: (tgp(x[:-1]) - tcp(x)) * coef["alpha"] - coef["lam"] * tcp(x, [0, 0, 1]),
-    'cer3'    : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/R[3] * tcp(x,[0,0,1])),
-    'cer2'    : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/R[2] * tcp(x,[0,0,1])),
-    'cer1'    : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/R[1] * tcp(x,[0,0,1])),
-    'cer0'    : lambda x: tcp(x,[0, 0, 1]),
+    'cer2cer' : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/x[2] * tcp(x,[0,0,1])),
+#    'cer0'    : lambda x: tcp(x,[0, 0, 1]),
     'gas'     : lambda x: tgp(x[:-1]),
     'cer'     : lambda x: tcp(x),
 })
@@ -38,10 +36,8 @@ funcs = dict({
 funcsr = dict({
     'gas2gas' : lambda x: (tgr(x[:-1]) - tcr(x)) * coef["k1"] - coef["k2"] * (tgr(x[:-1], [1, 0]) * coef["wg"] + tgr(x[:-1], [0, 1])),
     'gas2cer' : lambda x: (tgr(x[:-1]) - tcr(x)) * coef["alpha"] - coef["lam"] * tcr(x, [0, 0, 1]),
-    'cer3'    : lambda x: tcr(x,[0, 1, 0]) - coef["a"]*(tcr(x,[0,0,2]) + 2/R[3] * tcr(x,[0,0,1])),
-    'cer2'    : lambda x: tcr(x,[0, 1, 0]) - coef["a"]*(tcr(x,[0,0,2]) + 2/R[2] * tcr(x,[0,0,1])),
-    'cer1'    : lambda x: tcr(x,[0, 1, 0]) - coef["a"]*(tcr(x,[0,0,2]) + 2/R[1] * tcr(x,[0,0,1])),
-    'cer0'    : lambda x: tcr(x,[0, 0, 1]),
+    'cer2cer' : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/x[2] * tcp(x,[0,0,1])),
+    # 'cer0'    : lambda x: tcr(x,[0, 0, 1]),
     'gas'     : lambda x: tgr(x[:-1]),
     'cer'     : lambda x: tcr(x),
 })
@@ -53,10 +49,7 @@ temp_coeff = 10
 eq_resid = dict({
     'gas2gas' : balance_coeff,
     'gas2cer' : balance_coeff,
-    'cer3'    : balance_coeff,
-    'cer2'    : balance_coeff,
-    'cer1'    : balance_coeff,
-    'cer0'    : balance_coeff,
+    'cer2cer' : balance_coeff,
     'gas'     : temp_coeff,
     'cer'     : temp_coeff,
 })
@@ -97,12 +90,12 @@ def shifted(cffs,shift):
 def count_eq(eq,rg, val):
     ind = make_id(rg[1][1])
     crds = make_coords(rg[1][1],rg[0])
-    if rg[1][0].startswith('cer0'):
-        crds = sc.hstack([crds,sc.full(len(crds),R[0])])
-    elif rg[1][0].startswith('cer1'):
-        crds = sc.hstack([crds,sc.full(len(crds),R[1])])
-    elif rg[1][0].startswith('cer2'):
-        crds = sc.hstack([crds,sc.full(len(crds),R[2])])
+    if eq=='cer0':
+        crds = sc.hstack([crds,sc.full((len(crds),1),R[0])])
+    elif eq == 'cer1':
+        crds = sc.hstack([crds,sc.full((len(crds),1),R[1])])
+    elif eq == 'cer2':
+        crds = sc.hstack([crds,sc.full((len(crds),1),R[2])])
     else:# rg[1][0].startswith('cer3'):
         crds = sc.hstack([crds,sc.full((len(crds),1),R[3])])
 
@@ -111,7 +104,6 @@ def count_eq(eq,rg, val):
     elif rg[1][0].endswith("_r"):
         fnc = funcsr
     g = lambda x:shifted(fnc[eq](x),ind)
-    print(eq)
     cffs = sc.vstack(list(map(g, crds)))
     r_cffs = sc.full((1,len(cffs[:,0])),1)
     cffs[:,0] =  val - cffs[:,0]
@@ -146,8 +138,6 @@ def parse(eq, regs):
         crds1 = make_coords(regs[1][1][1],regs[1][0])
 
         g = lambda x:"({}) ({})".format("{:3.2f},{:3.2f}".format(*x[0]),"{:3.2f},{:3.2f}".format(*x[1]))
-        g1 = lambda x:fnc[eq](x)[0]
-        g2 = lambda x:fnc1[eq](x)[0]
         print("\n".join(list(map(g,zip(crds,crds1)))))
 
     return out
@@ -166,7 +156,7 @@ def main():
                                                'base_2', xreg, "r",
                                                ['gas_r', 'cer_r']),
                              ut.intemod_constraints(['cer'], "cer_p", "cer_r")))))
-
+    exit()
     x,dx,dz = lut.slvlprd(q, regsize*max_reg+1, TGZ,False)
 
     pc = sc.split(x[:-1],max_reg)

@@ -7,7 +7,23 @@ import lp_utils as lut
 from constants import *
 from polynom import *
 
-def make_gas_cer_quad(gas_coeffs=None, cer_coeffs=None, gasr_coeffs=None, cerr_coeffs=None):
+    funcs = dict({
+        'gas2gas' : lambda x: (tgp(x[:-1]) - tcp(x)) * coef["k1"] + coef["k2"] * (tgp(x[:-1], [1, 0]) * coef["wg"] + tgp(x[:-1], [0, 1])),
+        'gas2cer' : lambda x: (tgp(x[:-1]) - tcp(x)) * coef["alpha"] - coef["lam"] * tcp(x, [0, 0, 1]),
+        'cer3'    : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/R[3] * tcp(x,[0,0,1])),
+        'cer2'    : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/R[2] * tcp(x,[0,0,1])),
+        'cer1'    : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/R[1] * tcp(x,[0,0,1])),
+        'cer0'    : lambda x: tcp(x,[0, 0, 1]),
+        'gas'     : lambda x: tgp(x[:-1]),
+        'cer'     : lambda x: tcp(x),
+    })
+
+
+
+def make_gas_cer_quad(gas_coeffs=None,
+                      cer_coeffs=None,
+                      gasr_coeffs=None,
+                      cerr_coeffs=None):
     cer = Polynom(3, 3)
     gas = Polynom(2, 3)
     cerr = Polynom(3, 3)
@@ -56,7 +72,6 @@ def make_coords(ids,type):
     return xt
 
 
-
 def make_id(x):
     return x[0]*treg + x[1]
     
@@ -76,16 +91,6 @@ def parse(eq, regs):
         gc1,cc1,gcr1,ccr1 = sc.split(pc, [10,30,40])
     tgp1, tcp1, tgr1, tcr1 = make_gas_cer_quad(gc1,cc1,gcr1,ccr1)
     print(len(pc))
-    funcs = dict({
-        'gas2gas' : lambda x: (tgp(x[:-1]) - tcp(x)) * coef["k1"] + coef["k2"] * (tgp(x[:-1], [1, 0]) * coef["wg"] + tgp(x[:-1], [0, 1])),
-        'gas2cer' : lambda x: (tgp(x[:-1]) - tcp(x)) * coef["alpha"] - coef["lam"] * tcp(x, [0, 0, 1]),
-        'cer3'    : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/R[3] * tcp(x,[0,0,1])),
-        'cer2'    : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/R[2] * tcp(x,[0,0,1])),
-        'cer1'    : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/R[1] * tcp(x,[0,0,1])),
-        'cer0'    : lambda x: tcp(x,[0, 0, 1]),
-        'gas'     : lambda x: tgp(x[:-1]),
-        'cer'     : lambda x: tcp(x),
-    })
 
     funcsr = dict({
         'gas2gas' : lambda x: (tgr(x[:-1]) - tcr(x)) * coef["k1"] - coef["k2"] * (tgr(x[:-1], [1, 0]) * coef["wg"] + tgr(x[:-1], [0, 1])),
