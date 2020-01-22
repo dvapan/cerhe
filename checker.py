@@ -33,7 +33,6 @@ def make_coords(ids,type):
     return xt
 
 
-
 def make_id(x):
     return x[0]*treg + x[1]
     
