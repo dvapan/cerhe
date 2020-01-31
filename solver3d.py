@@ -1,9 +1,11 @@
-import scipy as sc
+import numpy as np
 from itertools import *
 from functools import *
 from pprint import pprint
-import utils as ut
-import lp_utils as lut
+
+from cylp.cy import CyClpSimplex
+from cylp.py.modeling.CyLPModel import CyLPArray
+
 
 from constants import *
 from polynom import Polynom, Context
@@ -20,149 +22,94 @@ context.assign(tcp)
 context.assign(tgr)
 context.assign(tcr)
 
-print([v.coeff_size for v in context.lvariables])
-regsize = sum([v.coeff_size for v in context.lvariables])
-print(regsize)
 
-funcs = dict({
-    'gas2gas' : lambda x: (tgp(x[:-1]) - tcp(x)) * coef["k1"] + coef["k2"] * (tgp(x[:-1], [1, 0]) * coef["wg"] + tgp(x[:-1], [0, 1])),
-    'gas2cer' : lambda x: (tgp(x[:-1]) - tcp(x)) * coef["alpha"] - coef["lam"] * tcp(x, [0, 0, 1]),
-    'cer2cer' : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/x[2] * tcp(x,[0,0,1])),
-#    'cer0'    : lambda x: tcp(x,[0, 0, 1]),
-    'gas'     : lambda x: tgp(x[:-1]),
-    'cer'     : lambda x: tcp(x),
-})
+def cer2cer(x,p):
+    if x[2] > 0.01:
+        return p[1](x,[0, 1, 0]) - coef["a"]*(p[1](x,[0,0,2]) + 2/x[2] * p[1](x,[0,0,1]))
+    else:
+        return p[1](x,[0, 0, 1])
 
-funcsr = dict({
-    'gas2gas' : lambda x: (tgr(x[:-1]) - tcr(x)) * coef["k1"] - coef["k2"] * (tgr(x[:-1], [1, 0]) * coef["wg"] + tgr(x[:-1], [0, 1])),
-    'gas2cer' : lambda x: (tgr(x[:-1]) - tcr(x)) * coef["alpha"] - coef["lam"] * tcr(x, [0, 0, 1]),
-    'cer2cer' : lambda x: tcp(x,[0, 1, 0]) - coef["a"]*(tcp(x,[0,0,2]) + 2/x[2] * tcp(x,[0,0,1])),
-    # 'cer0'    : lambda x: tcr(x,[0, 0, 1]),
-    'gas'     : lambda x: tgr(x[:-1]),
-    'cer'     : lambda x: tcr(x),
-})
+def gas2gasr(x,p):
+    return (p[0](x[:-1]) - p[1](x)) * coef["k1"] - coef["k2"] * (p[0](x[:-1], [1, 0]) * coef["wg"] + p[0](x[:-1], [0, 1]))
+
+    
+def gas2gasp(x,p):
+    return (p[0](x[:-1]) - p[1](x)) * coef["k1"] + coef["k2"] * (p[0](x[:-1], [1, 0]) * coef["wg"] + p[0](x[:-1], [0, 1]))
+
+def gas2cer(x, p):
+    return (p[0](x[:-1]) - p[1](x)) * coef["alpha"] - coef["lam"] * p[1](x, [0, 0, 1])
+
+def tcp2tcr(x, p):
+    x1 = x[0],T[ 0],x[1]
+    r1 = p[1](x1)
+    x2 = x[0],T[-1],x[1]
+    r2 = p[1](x2)
+    return r2 - r1
+
+def tcr2tcp(x, p):
+    x1 = x[0],T[-1],x[1]
+    r1 = p[1](x1)
+    x2 = x[0],T[ 0],x[1]
+    r2 = p[1](x2)
+    return r2 - r1
 
 
 balance_coeff = 20
 temp_coeff = 10
 
-eq_resid = dict({
-    'gas2gas' : balance_coeff,
-    'gas2cer' : balance_coeff,
-    'cer2cer' : balance_coeff,
-    'gas'     : temp_coeff,
-    'cer'     : temp_coeff,
-})
+def add_residual(s,var_num, monoms, val=0):
+    s.CLP_addConstraint(var_num, np.arange(var_num,dtype=np.int32),
+                        np.hstack([monoms,[1]]),val,np.inf)
+    s.CLP_addConstraint(var_num, np.arange(var_num,dtype=np.int32),
+                        np.hstack([monoms,[-1]]),-np.inf,val)
 
-
-
-
-def parse_reg(pr):
-    if type(pr) is str:
-        return pr
-    else:
-        return pr[0]+pr[1][0] + "_" + str(pr[1][1])
-
-def make_coords(ids,type):
-    i, j = ids
-    xv, tv = sc.meshgrid(X_part[i], T_part[j])
-    xv = xv.reshape(-1)
-    tv = tv.reshape(-1)
-
-    if type in "lr":
-        xt = ut.boundary_coords((X_part[i], T_part[j]))[type]
-    elif type in "tb":
-        xt = ut.boundary_coords((X_part[i], T_part[j]))[type]        
-    elif type == "i":
-        xt = sc.vstack([xv, tv]).T
-    elif type == "c":
-        xt = None
-    return xt
-
-def shifted(cffs,shift):
-    psize = len(cffs[1:])
-    lzeros = sc.zeros(psize * shift)
-    rzeros = sc.zeros((max_reg - shift-1) * psize)
-    cffs = sc.hstack([cffs[0],lzeros,cffs[1:],rzeros])
-    return cffs
-    
-
-def count_eq(eq,rg, val):
-    ind = make_id(rg[1][1])
-    crds = make_coords(rg[1][1],rg[0])
-    if eq=='cer0':
-        crds = sc.hstack([crds,sc.full((len(crds),1),R[0])])
-    elif eq == 'cer1':
-        crds = sc.hstack([crds,sc.full((len(crds),1),R[1])])
-    elif eq == 'cer2':
-        crds = sc.hstack([crds,sc.full((len(crds),1),R[2])])
-    else:# rg[1][0].startswith('cer3'):
-        crds = sc.hstack([crds,sc.full((len(crds),1),R[3])])
-
-    if rg[1][0].endswith("_p"):
-        fnc = funcs
-    elif rg[1][0].endswith("_r"):
-        fnc = funcsr
-    g = lambda x:shifted(fnc[eq](x),ind)
-    cffs = sc.vstack(list(map(g, crds)))
-    r_cffs = sc.full((1,len(cffs[:,0])),1)
-    cffs[:,0] =  val - cffs[:,0]
-
-    cffs /= eq_resid[eq]
-    cffs = sc.vstack([sc.hstack([ cffs,r_cffs.reshape((-1,1))]),
-                      sc.hstack([-cffs,r_cffs.reshape((-1,1))])])        
-    return cffs
-
-
-
-def make_id(x):
-    return x[0]*treg + x[1]
-    
-def parse(eq, regs):
-    print(eq + " : " + " ".join(map(parse_reg, regs)))
-    if eq in ['gas2gas', 'gas2cer', 'cer3', 'cer2', 'cer1', 'cer0']:
-        out = count_eq(eq,regs[0],0)
-    elif regs[1][1][0].startswith('base'):
-        if regs[0][1][0].endswith("_p"):
-            T = TGZ
+def add_residuals(s, var_num, domain, diff_eq, p=None, val=0):
+    print(diff_eq.__name__)
+    for x in domain:
+        if diff_eq.__name__ == "polynom":
+            r = diff_eq(x)[1:]
         else:
-            T = TBZ
-        out = count_eq(eq,regs[0],T)
-    else:            
-        x1 = count_eq(eq,regs[0],0)
-        x2 = count_eq(eq,regs[1],0)
-        out = x2 - x1
-        out[:,-1] = x1[:,-1]
+            r = diff_eq(x,p)[1:]
+        add_residual(s,var_num,r,val)
 
-        crds = make_coords(regs[0][1][1],regs[0][0])
-        crds1 = make_coords(regs[1][1][1],regs[1][0])
+def main():    
+    pp = [tgp,tcp]
+    pr = [tgr,tcr]
 
-        g = lambda x:"({}) ({})".format("{:3.2f},{:3.2f}".format(*x[0]),"{:3.2f},{:3.2f}".format(*x[1]))
-        print("\n".join(list(map(g,zip(crds,crds1)))))
+    var_num = 0
+    for el in [tgp,tcp,tgr,tcr]:
+        var_num+=el.coeff_size
 
-    return out
+    
+    s = CyClpSimplex()
+    print(var_num,1)
+    var_num+=1
+    
+    s.resize(0,var_num)
+    print ("primal process")
+    add_residuals(s, var_num, product(X,T,R[-1:]),gas2gasp,pp)
+    add_residuals(s, var_num, product(X,T,R[-1:]),gas2cer,pp)
+    add_residuals(s, var_num, product(X,T,R),cer2cer,pp)
+    add_residuals(s, var_num, product(X[:1],T),tgp,pp,TGZ)
+    add_residuals(s, var_num, product(X,R),tcp2tcr,pp)
 
+    print ("reverse process")
+    add_residuals(s, var_num, product(X,T,R[-1:]),gas2gasr,pr)
+    add_residuals(s, var_num, product(X,T,R[-1:]),gas2cer,pr)
+    add_residuals(s, var_num, product(X,T,R),cer2cer,pr)
+    add_residuals(s, var_num, product(X[-1:],T),tgr,pr,val=TBZ)
+    add_residuals(s, var_num, product(X,R),tcr2tcp,pr)
+    
+    obj = np.zeros(var_num,dtype=np.float64)
+    obj[-1] = 1
+    s.setObjectiveArray(obj)
+    s.dual()
+    res = np.array(s.primalVariableSolution)
+    print(res)
+    np.savetxt("poly3d",res)
 
+        
 
-def main():
-
-    print ("PREPARE_PROBLEM")
-    q = sc.vstack(list(starmap(parse,
-                         chain(
-                             ut.construct_mode(['gas2gas', 'gas2cer', 'cer3', 'cer2', 'cer1', 'cer0'],
-                                               'base_1', 1, "l",
-                                               ['gas_p', 'cer_p']),
-                             ut.construct_mode(['gas2gas', 'gas2cer', 'cer3', 'cer2', 'cer1', 'cer0'],
-                                               'base_2', xreg, "r",
-                                               ['gas_r', 'cer_r']),
-                             ut.intemod_constraints(['cer'], "cer_p", "cer_r")))))
-    exit()
-    x,dx,dz = lut.slvlprd(q, regsize*max_reg+1, TGZ,False)
-
-    pc = sc.split(x[:-1],max_reg)
-
-    sc.savetxt("poly_coeff",pc)
-    sc.savetxt("resd",dz.reshape(-1,1))
 
 if __name__ == "__main__":
     main()

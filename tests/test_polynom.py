@@ -44,4 +44,19 @@ class TestPolynom(unittest.TestCase):
     def test_scipy_array_equals(self):
         self.assertTrue(sc.any(sc.arange(10) == sc.arange(10)))
 
+class TestPolynom3(unittest.TestCase):
+    def setUp(self):
+        self.poly = Polynom(3,3)
+        self.poly.coeffs = sc.arange(1,self.poly.coeff_size + 1)
+
+    def test_fx_2degree(self):
+        test_data = {}
+        x = sc.array([[1,2,3],
+                      [3,2,1],
+                      [2,3,1],
+                      [2,1, 3]])
+        print(list(map(lambda xx:self.poly.fx_var(xx),x)))
+
+
+        
 #TODO: make higher degree tests

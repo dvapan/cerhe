@@ -1,13 +1,15 @@
 import unittest
+
 import scipy as sc
-from cylp.cy import CyClpSimplex
+import numpy as np
+from cylp.cy import CyClpSimplex,CyCoinModel
 from cylp.py.modeling.CyLPModel import CyLPArray
 import numpy.testing as sct
 
 
 
 class TestCylp(unittest.TestCase):
-    def test_connection(self):
+    def connection(self):
         s = CyClpSimplex()
         x = s.addVariable('x', 2)
 
@@ -26,7 +28,35 @@ class TestCylp(unittest.TestCase):
 
         # Solve using primal Simplex
         s.dual()
+        print(s.primalVariableSolution)
+        print(s.objectiveValue)
+        print(s.dualConstraintSolution)
+
         sct.assert_equal(sc.array([0., 4.]),
                          s.primalVariableSolution['x'])
         sct.assert_equal(sc.array([1., 0., 0.]),
                          s.dualConstraintSolution['R_1'])
+
+    def test_CyCoinModel(self):
+        s = CyClpSimplex()
+        s.resize(0,2)
+        s.CLP_addConstraint(2,np.array([0,1],np.int32),
+                        np.array([-2, 1],np.float64),4,np.inf)
+        s.CLP_addConstraint(2,np.array([0,1],np.int32),
+                        np.array([-2, -1],np.float64),-8,np.inf)
+        s.CLP_addConstraint(2,np.array([0,1],np.int32),
+                        np.array([3, 2],np.float64),6,np.inf)
+
+        # Create coefficients and bounds
+        s.setObjectiveArray(np.array([3,1], np.float64))
+
+
+        # Solve using primal Simplex
+        s.primal()
+        print(s.primalVariableSolution)
+        print(s.objectiveValue)
+        print(s.dualConstraintSolution)
+        sct.assert_equal(sc.array([0., 4.]),
+                         s.primalVariableSolution)
+        sct.assert_equal(sc.array([1., 0., 0.]),
+                         s.dualConstraintSolution)

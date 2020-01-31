@@ -27,6 +27,7 @@ class Context:
 
 class Polynom:
     def __init__(self, count_var, degree):
+        self.__name__ = "polynom"
         self.count_var = count_var
         self.degree = degree
         self.coeff_size = len(pow_indices(count_var, degree))

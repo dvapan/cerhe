@@ -4,7 +4,8 @@ from itertools import *
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 from polynom import Polynom, Context
-from constants import xreg,treg
+
+from constants import *
 
 def left_boundary_coords(x):
     lx = sc.full_like(x[1], x[0][0])

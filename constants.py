@@ -9,9 +9,9 @@ length = 1                      # Длина теплообменника       
 time = 20                       # Время работы теплообменника            | [с]
 radius = 0.01                   # Радиус заполнителя (керамический шарик)| [м]
 
-X = sc.linspace(0, length, 30)
-T = sc.linspace(0, time, 30)
-R = sc.linspace(0.001, radius, 5)
+X = sc.linspace(0, length, 10)
+T = sc.linspace(0, time, 10)
+R = sc.linspace(0, radius, 5)
 X_part = sc.split(X, xreg)
 T_part = sc.split(T, treg)
 index_info = 0
