@@ -3,10 +3,7 @@ from itertools import *
 from functools import *
 from pprint import pprint
 
-from cylp.cy import CyClpSimplex
-from cylp.py.modeling.CyLPModel import CyLPArray
-
-
+import lp_utils as lut
 from constants import *
 from polynom import Polynom, Context
 
@@ -24,7 +21,7 @@ context.assign(tcr)
 
 
 def cer2cer(x,p):
-    if x[2] > 0.01:
+    if x[2] > 0.00001:
         return p[1](x,[0, 1, 0]) - coef["a"]*(p[1](x,[0,0,2]) + 2/x[2] * p[1](x,[0,0,1]))
     else:
         return p[1](x,[0, 0, 1])
@@ -41,36 +38,44 @@ def gas2cer(x, p):
 
 def tcp2tcr(x, p):
     x1 = x[0],T[ 0],x[1]
-    r1 = p[1](x1)
+    r1 = tcp(x1)
     x2 = x[0],T[-1],x[1]
-    r2 = p[1](x2)
+    r2 = tcr(x2)
     return r2 - r1
 
 def tcr2tcp(x, p):
     x1 = x[0],T[-1],x[1]
-    r1 = p[1](x1)
+    r1 = tcp(x1)
     x2 = x[0],T[ 0],x[1]
-    r2 = p[1](x2)
+    r2 = tcr(x2)
     return r2 - r1
 
 
 balance_coeff = 20
-temp_coeff = 10
+temp_coeff = 1
+prb_chain = []
 
-def add_residual(s,var_num, monoms, val=0):
-    s.CLP_addConstraint(var_num, np.arange(var_num,dtype=np.int32),
-                        np.hstack([monoms,[1]]),val,np.inf)
-    s.CLP_addConstraint(var_num, np.arange(var_num,dtype=np.int32),
-                        np.hstack([monoms,[-1]]),-np.inf,val)
+def add_residual(var_num, monoms, val=0):
+    prb_chain.append(sc.hstack([val,monoms,[1]]))
+    prb_chain.append(sc.hstack([-val,-monoms,[1]]))
 
-def add_residuals(s, var_num, domain, diff_eq, p=None, val=0):
+    # s.CLP_addConstraint(var_num, np.arange(var_num,dtype=np.int32),
+    #                     np.hstack([monoms,[1]]),val,np.inf)
+    # s.CLP_addConstraint(var_num, np.arange(var_num,dtype=np.int32),
+    #                     np.hstack([monoms,[-1]]),-np.inf,val)
+
+def add_residuals(var_num, domain, diff_eq, p=None, val=0):
     print(diff_eq.__name__)
     for x in domain:
         if diff_eq.__name__ == "polynom":
-            r = diff_eq(x)[1:]
+            r = diff_eq(x)
         else:
-            r = diff_eq(x,p)[1:]
-        add_residual(s,var_num,r,val)
+            r = diff_eq(x,p)
+        if diff_eq.__name__ in ["polynom", "tcp2tcr", "tcr2tcp"]:
+            r /= temp_coeff
+        else:
+            r /= balance_coeff
+        add_residual(var_num,r[1:],val)
 
 def main():    
     pp = [tgp,tcp]
@@ -81,35 +86,31 @@ def main():
         var_num+=el.coeff_size
 
     
-    s = CyClpSimplex()
     print(var_num,1)
     var_num+=1
     
-    s.resize(0,var_num)
     print ("primal process")
-    add_residuals(s, var_num, product(X,T,R[-1:]),gas2gasp,pp)
-    add_residuals(s, var_num, product(X,T,R[-1:]),gas2cer,pp)
-    add_residuals(s, var_num, product(X,T,R),cer2cer,pp)
-    add_residuals(s, var_num, product(X[:1],T),tgp,pp,TGZ)
-    add_residuals(s, var_num, product(X,R),tcp2tcr,pp)
+    add_residuals(var_num, product(X,T,R[-1:]),gas2gasp,pp)
+    add_residuals(var_num, product(X,T,R[-1:]),gas2cer,pp)
+    add_residuals(var_num, product(X,T,R),cer2cer,pp)
+    add_residuals(var_num, product(X[:1],T),tgp,pp,TGZ)
+    add_residuals(var_num, product(X,R),tcp2tcr,pp)
 
     print ("reverse process")
-    add_residuals(s, var_num, product(X,T,R[-1:]),gas2gasr,pr)
-    add_residuals(s, var_num, product(X,T,R[-1:]),gas2cer,pr)
-    add_residuals(s, var_num, product(X,T,R),cer2cer,pr)
-    add_residuals(s, var_num, product(X[-1:],T),tgr,pr,val=TBZ)
-    add_residuals(s, var_num, product(X,R),tcr2tcp,pr)
-    
-    obj = np.zeros(var_num,dtype=np.float64)
-    obj[-1] = 1
-    s.setObjectiveArray(obj)
-    s.dual()
-    res = np.array(s.primalVariableSolution)
-    print(res)
-    np.savetxt("poly3d",res)
-
+    add_residuals(var_num, product(X,T,R[-1:]),gas2gasr,pr)
+    add_residuals(var_num, product(X,T,R[-1:]),gas2cer,pr)
+    add_residuals(var_num, product(X,T,R),cer2cer,pr)
+    add_residuals(var_num, product(X[-1:],T),tgr,pr,val=TBZ)
+    add_residuals(var_num, product(X,R),tcr2tcp,pr)
         
+    prb = sc.vstack(prb_chain)
+    x,dx,dz = lut.slvlprd(prb, var_num, TGZ,False)
+    print(x)
+    pc = sc.split(x[:-1],max_reg)
 
+    sc.savetxt("poly_coeff_3d",pc)
+
+    
 
 if __name__ == "__main__":
     main()

@@ -138,7 +138,7 @@ def main():
                                                ['gas_r', 'cer_r']),
                              ut.intemod_constraints(['cer'], "cer_p", "cer_r")))))
 
-    x,dx,dz = lut.slvlprd(q, 40*max_reg+1, TGZ,False)
+    x,dx,dz = lut.slvlprd(q, 40*max_reg+1, TGZ,True)
 
     pc = sc.split(x[:-1],max_reg)
 

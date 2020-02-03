@@ -9,12 +9,12 @@ import utils
 
 regsize = 0
 
-pc = np.loadtxt("poly_coeff_3d")
+pc = np.loadtxt("poly_coeff")
 
 tgp = Polynom(2, 3)
-tcp = Polynom(3, 3)
+tcp = Polynom(2, 3)
 tgr = Polynom(2, 3)
-tcr = Polynom(3, 3)
+tcr = Polynom(2, 3)
 
 context = Context()
 context.assign(tgp)
@@ -32,13 +32,6 @@ s,f = s+tgr.coeff_size,f+tcr.coeff_size
 tcr.coeffs = pc[s:f]
 
 
-def cer2cer(x,p):
-    if x[2] > 0.00001:
-        return p[1](x,[0, 1, 0]) - coef["a"]*(p[1](x,[0,0,2]) + 2/x[2] * p[1](x,[0,0,1]))
-    else:
-        return p[1](x,[0, 0, 1])
-
-
 def main():
 
     var_num = 0
@@ -46,35 +39,29 @@ def main():
         var_num += el.coeff_size
     print(var_num,1)
     var_num += 1
-
-    print ("primal")
     
+    print("primal_process")
     for t in T:
         for x in X:
-            print("{:16.6}".format(tgp([x,t])[0]),end = " ")
+            print("{:10.5}".format(tgp([x,t])[0]),end = " ")
         print()
-        for r in R:
-            for x in X:
-                print("{:16.6}".format(tcp([x,t,r],[0,1,0])[0]),end = " ")
-            print()
+        for x in X:
+            print("{:10.5}".format(tcp([x,t])[0]),end = " ")
+        print()
         print()
 
-    print ("reverse")
-
+    print("reverse process")
     for t in T:
         for x in X:
-            print("{:16.6}".format(tgr([x,t])[0]),end = " ")
+            print("{:10.5}".format(tgr([x,t])[0]),end = " ")
         print()
-        for r in R:
-            for x in X:
-                print("{:16.6}".format(tcr([x,t,r],[0,1,0])[0]),end = " ")
-            print()
+        for x in X:
+            print("{:10.5}".format(tcr([x,t])[0]),end = " ")
+        print()
         print()
 
-                
 
     
 if __name__ == "__main__":
     main()
-
 
