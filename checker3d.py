@@ -40,22 +40,32 @@ def cer2cer(x,p):
 
 
 def main():
-
     var_num = 0
     for el in [tgp,tcp,tgr,tcr]:
         var_num += el.coeff_size
     print(var_num,1)
     var_num += 1
-
+    
     print ("primal")
+
+    for x in X:
+        print("|{:>16}{:>16}{:>16}{:>16}".format("temp","dtc/dt","dtc/dr","d2tc/dr2"),end = " ")
+    print()
     
     for t in T:
         for x in X:
-            print("{:16.6}".format(tgp([x,t])[0]),end = " ")
+            gas_temp = tgp([x,t])[0]
+            print("|{:16.6}{:16.6}{:16.6}{:16.6}".format(gas_temp,np.nan,0.0,0.0),end = " ")
         print()
-        for r in R:
+
+        
+        for r in R[::-1]:
             for x in X:
-                print("{:16.6}".format(tcp([x,t,r],[0,1,0])[0]),end = " ")
+                tc = tcp([x,t,r])[0]
+                dtcdt = tcp([x,t,r],[0,1,0])[0]
+                dtcdr = tcp([x,t,r],[0,0,1])[0]
+                d2tcdr2 = tcp([x,t,r],[0,0,2])[0]
+                print("|{:16.6}{:16.6}{:16.6}{:16.6}".format(tc,dtcdt,dtcdr,d2tcdr2),end = " ")
             print()
         print()
 
@@ -65,9 +75,9 @@ def main():
         for x in X:
             print("{:16.6}".format(tgr([x,t])[0]),end = " ")
         print()
-        for r in R:
+        for r in R[::-1]:
             for x in X:
-                print("{:16.6}".format(tcr([x,t,r],[0,1,0])[0]),end = " ")
+                print("{:16.6}".format(tcr([x,t,r])[0]),end = " ")
             print()
         print()
 

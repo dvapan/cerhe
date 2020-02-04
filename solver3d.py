@@ -21,11 +21,12 @@ context.assign(tcr)
 
 
 def cer2cer(x,p):
-    if x[2] > 0.00001:
-        return p[1](x,[0, 1, 0]) - coef["a"]*(p[1](x,[0,0,2]) + 2/x[2] * p[1](x,[0,0,1]))
-    else:
-        return p[1](x,[0, 0, 1])
+    return p[1](x,[0, 1, 0]) - coef["a"]*(p[1](x,[0,0,2]) + 2/x[2] * p[1](x,[0,0,1]))
 
+def cer2cerz(x,p):
+    return p[1](x,[0, 0, 1])
+    
+    
 def gas2gasr(x,p):
     return (p[0](x[:-1]) - p[1](x)) * coef["k1"] - coef["k2"] * (p[0](x[:-1], [1, 0]) * coef["wg"] + p[0](x[:-1], [0, 1]))
 
@@ -92,14 +93,16 @@ def main():
     print ("primal process")
     add_residuals(var_num, product(X,T,R[-1:]),gas2gasp,pp)
     add_residuals(var_num, product(X,T,R[-1:]),gas2cer,pp)
-    add_residuals(var_num, product(X,T,R),cer2cer,pp)
+    add_residuals(var_num, product(X,T,R[1:-1]),cer2cer,pp)
+    add_residuals(var_num, product(X,T,R[0:1]),cer2cerz,pp)    
     add_residuals(var_num, product(X[:1],T),tgp,pp,TGZ)
     add_residuals(var_num, product(X,R),tcp2tcr,pp)
 
     print ("reverse process")
     add_residuals(var_num, product(X,T,R[-1:]),gas2gasr,pr)
     add_residuals(var_num, product(X,T,R[-1:]),gas2cer,pr)
-    add_residuals(var_num, product(X,T,R),cer2cer,pr)
+    add_residuals(var_num, product(X,T,R[1:-1]),cer2cer,pr)
+    add_residuals(var_num, product(X,T,R[0:1]),cer2cerz,pr)    
     add_residuals(var_num, product(X[-1:],T),tgr,pr,val=TBZ)
     add_residuals(var_num, product(X,R),tcr2tcp,pr)
         
