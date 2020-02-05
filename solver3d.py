@@ -52,7 +52,7 @@ def tcr2tcp(x, p):
     return r2 - r1
 
 
-balance_coeff = 200
+balance_coeff = 20
 temp_coeff = 1
 cer_coeff = 0.001
 prb_chain = []

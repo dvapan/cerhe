@@ -9,10 +9,10 @@ from constants import *
 from polynom import Polynom, Context
 
 regsize = 0
-tgp = Polynom(2, 3)
-tcp = Polynom(2, 3)
-tgr = Polynom(2, 3)
-tcr = Polynom(2, 3)
+tgp = Polynom(2, 5)
+tcp = Polynom(2, 5)
+tgr = Polynom(2, 5)
+tcr = Polynom(2, 5)
 
 context = Context()
 context.assign(tgp)
@@ -31,24 +31,38 @@ def gas2cer(x, p):
     return (p[0](x) - p[1](x)) * coef["k1"] - coef["k3"] * p[1](x, [0, 1])
 
 def tcp2tcr(x, p):
-    x1 = x,T[ 0]
+    x1 = x,T[-1]
     r1 = tcp(x1)
-    x2 = x,T[-1]
+    x2 = x,T[0]
     r2 = tcr(x2)
     return r2 - r1
 
 def tcr2tcp(x, p):
     x1 = x,T[-1]
-    r1 = tcp(x1)
-    x2 = x,T[ 0],
-    r2 = tcr(x2)
+    r1 = tcr(x1)
+    x2 = x,T[ 0]
+    r2 = tcp(x2)
     return r2 - r1
 
 
-balance_coeff = 20
-temp_coeff = 10
 
+balance_coeff = 20
+temp_coeff = 1
+cer_coeff = 0.001
 prb_chain = []
+
+coeffs = {
+    "polynom"  : temp_coeff,
+    "tcp2tcr"  : temp_coeff,
+    "tcr2tcp"  : temp_coeff,
+    "gas2gasp" : balance_coeff,
+    "gas2gasr" : balance_coeff,
+    "gas2cer"  : balance_coeff,
+    "cer2cer"  : cer_coeff,
+    "cer2cerz" : cer_coeff
+}
+
+
 
 def add_residual(var_num, monoms, val=0):
     prb_chain.append(sc.hstack([val,monoms,[1]]))

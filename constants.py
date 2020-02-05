@@ -7,7 +7,7 @@ max_reg = xreg*treg
 
 length = 1                      # Длина теплообменника        | [м]
 time = 20                       # Время работы теплообменника | [с]
-radius = 0.04                   # Радиус заполнителя          | [м]
+radius = 0.01                   # Радиус заполнителя          | [м]
 radius_inner = 0.01*radius
 
 X = sc.linspace(0, length, 20)
