@@ -74,6 +74,8 @@ def add_residuals(var_num, domain, diff_eq, p=None, val=0):
             r = diff_eq(x,p)
         if diff_eq.__name__ in ["polynom", "tcp2tcr", "tcr2tcp"]:
             r /= temp_coeff
+        elif diff_eq.__name__ in ["gas2cer","cer2cer", "cer2cerz"]:
+            r /= 0.001
         else:
             r /= balance_coeff
         add_residual(var_num,r[1:],val)
@@ -94,7 +96,7 @@ def main():
     add_residuals(var_num, product(X,T,R[-1:]),gas2gasp,pp)
     add_residuals(var_num, product(X,T,R[-1:]),gas2cer,pp)
     add_residuals(var_num, product(X,T,R[1:-1]),cer2cer,pp)
-    add_residuals(var_num, product(X,T,R[0:1]),cer2cerz,pp)    
+    add_residuals(var_num, product(X,T,R[:1]),cer2cerz,pp)    
     add_residuals(var_num, product(X[:1],T),tgp,pp,TGZ)
     add_residuals(var_num, product(X,R),tcp2tcr,pp)
 
@@ -102,7 +104,7 @@ def main():
     add_residuals(var_num, product(X,T,R[-1:]),gas2gasr,pr)
     add_residuals(var_num, product(X,T,R[-1:]),gas2cer,pr)
     add_residuals(var_num, product(X,T,R[1:-1]),cer2cer,pr)
-    add_residuals(var_num, product(X,T,R[0:1]),cer2cerz,pr)    
+    add_residuals(var_num, product(X,T,R[:1]),cer2cerz,pr)    
     add_residuals(var_num, product(X[-1:],T),tgr,pr,val=TBZ)
     add_residuals(var_num, product(X,R),tcr2tcp,pr)
         
