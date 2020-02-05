@@ -110,7 +110,6 @@ def main():
         
     prb = sc.vstack(prb_chain)
     x,dx,dz = lut.slvlprd(prb, var_num, TGZ,False)
-    print(x)
     pc = sc.split(x[:-1],max_reg)
 
     sc.savetxt("poly_coeff_3d",pc)
