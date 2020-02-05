@@ -114,7 +114,10 @@ qqq1
 .idea/
 
 resd
-poly_coeff
+poly_coeff*
 poly2d
 poly3d
 *~
+
+dat*
+otkl
