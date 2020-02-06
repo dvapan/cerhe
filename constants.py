@@ -5,8 +5,8 @@ import utils as ut
 xreg,treg = 1,1
 max_reg = xreg*treg
 
-length = 1                      # Длина теплообменника        | [м]
-time = 20                       # Время работы теплообменника | [с]
+length = 4                      # Длина теплообменника        | [м]
+time = 300                       # Время работы теплообменника | [с]
 radius = 0.01                   # Радиус заполнителя          | [м]
 radius_inner = 0.01*radius
 

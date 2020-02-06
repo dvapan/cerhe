@@ -53,12 +53,13 @@ def main():
     for el in [tgp,tcp,tgr,tcr]:
         var_num += el.coeff_size
     print(var_num,1)
+    # print("residual: ", pc[-1])
     var_num += 1
     
-    info = " ","t","r","temp","d/dt","d/dr","d2/dr2","balance left", "balance right", "residual"
-    fmts = "|{:8}{:7.3}{:7.3}{:12.2f}{:8.4f}{:16.6}{:16.6}{:16.6}{:16.6}{:16.6}"
-    info_fmt = "|{:8}{:>7}{:>7}{:>12}{:>8}{:>16}{:>16}{:>16}{:>16}{:>16}"
-    w = 1+8+7*2+12*1+8*1+16*5
+    info = " ","t","r","temp","balance left", "residual"
+    fmts = "|{:8}{:7.3}{:7.3}{:12.2f}{:16.6}{:16.6}"
+    info_fmt = "|{:8}{:>7}{:>7}{:>12}{:>16}{:>16}"
+    w = 1+8+7*2+12*1+16*2
     space = " "*((w+1)*len(X))
     s = "{:<{w}}".format("primal",w=((w+1)*len(X)))
     print (s)
@@ -81,10 +82,8 @@ def main():
             eq_left = (tg - tc)*coef["k1"]
             eq_right = -coef["k2"] * (dtgdx * coef["wg"] + dtgdt)
             row_type = "gas2gasp"
-            eq_right /= coeffs[row_type]
-            eq_left /= coeffs[row_type]
             d = eq_right-eq_left
-            print(fmts.format(row_type,t,"",tg,dtgdt,np.nan,np.nan,eq_left,eq_right,d),end = " ")
+            print(fmts.format(row_type,t,"",tg,eq_left,d),end = " ")
         print()
         
         for r in R:
@@ -98,17 +97,11 @@ def main():
                     row_type = "gas2cer"
                     eq_right = coef["lam"] * dtcdr 
                     eq_left = (tg-tc)*coef["alpha"]
-                elif r == R[-1]:
-                    eq_right = dtcdr
-                    eq_left = 0.0
-                    row_type = "cer2cerz"
                 else:
                     eq_right = coef["a"]*(d2tcdr2 + 2/r * dtcdr)
                     eq_left = dtcdt
                     row_type = "cer2cer"
-                eq_right /= coeffs[row_type]
-                eq_left /= coeffs[row_type]
-                print(fmts.format(row_type,"",r,tc,dtcdt,dtcdr,d2tcdr2,eq_left,eq_right,eq_right-eq_left),end = " ")
+                print(fmts.format(row_type,"",r,tc,eq_left,eq_right-eq_left),end = " ")
             print()
         print(space)
 
@@ -133,7 +126,7 @@ def main():
             row_type = "gas2gasr"
             eq_right /= coeffs[row_type]
             eq_left /= coeffs[row_type]
-            print(fmts.format(row_type,t,"",tg,dtgdt,np.nan,np.nan,eq_left,eq_right,eq_right-eq_left),end = " ")
+            print(fmts.format(row_type,t,"",tg,eq_left,eq_right-eq_left),end = " ")
         print()
         
         for r in R:
@@ -147,27 +140,17 @@ def main():
                     eq_right = coef["lam"] * dtcdr
                     eq_left = (tg-tc)*coef["alpha"]
                     row_type = "gas2cer"
-                elif r == R[-1]:
-                    eq_right = dtcdr
-                    eq_left = 0.0
-                    row_type = "cer2cerz"
                 else:
                     eq_right = coef["a"]*(d2tcdr2 + 2/r * dtcdr)
                     eq_left = dtcdt
                     row_type = "cer2cer"
                 eq_right /= coeffs[row_type]
                 eq_left /= coeffs[row_type]
-                print(fmts.format(row_type,"",r,tc,dtcdt,dtcdr,d2tcdr2,eq_left,eq_right,eq_right-eq_left),end = " ")
+                print(fmts.format(row_type,"",r,tc,eq_left,eq_right-eq_left),end = " ")
             print()
         print(space)
 
     print ("="*len(s))
-
-    for x in product(X,R):
-        print(tcr2tcp(x,None)[0])
-    print ("="*len(s))
-    for x in product(X,R):
-        print(tcp2tcr(x,None)[0])
 
         
 if __name__ == "__main__":

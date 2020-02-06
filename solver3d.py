@@ -52,7 +52,7 @@ def tcr2tcp(x, p):
     return r2 - r1
 
 
-balance_coeff = 20
+balance_coeff = 10
 temp_coeff = 1
 cer_coeff = 0.001
 prb_chain = []
@@ -63,7 +63,7 @@ coeffs = {
     "tcr2tcp"  : temp_coeff,
     "gas2gasp" : balance_coeff,
     "gas2gasr" : balance_coeff,
-    "gas2cer"  : balance_coeff,
+    "gas2cer"  : cer_coeff,
     "cer2cer"  : cer_coeff,
     "cer2cerz" : cer_coeff
 }
@@ -71,11 +71,6 @@ coeffs = {
 def add_residual(var_num, monoms, val=0):
     prb_chain.append(sc.hstack([val,monoms,[1]]))
     prb_chain.append(sc.hstack([-val,-monoms,[1]]))
-
-    # s.CLP_addConstraint(var_num, np.arange(var_num,dtype=np.int32),
-    #                     np.hstack([monoms,[1]]),val,np.inf)
-    # s.CLP_addConstraint(var_num, np.arange(var_num,dtype=np.int32),
-    #                     np.hstack([monoms,[-1]]),-np.inf,val)
 
 def add_residuals(var_num, domain, diff_eq, p=None, val=0):
     print(diff_eq.__name__)
@@ -85,6 +80,7 @@ def add_residuals(var_num, domain, diff_eq, p=None, val=0):
         else:
             r = diff_eq(x,p)
         r /= coeffs[diff_eq.__name__]
+#        val /= coeffs[diff_eq.__name__]
         add_residual(var_num,r[1:],val)
 
 def main():    
@@ -102,16 +98,16 @@ def main():
     print ("primal process")
     add_residuals(var_num, product(X,T,R[:1]),gas2gasp,pp)
     add_residuals(var_num, product(X,T,R[:1]),gas2cer,pp)
-    add_residuals(var_num, product(X,T,R[1:-1]),cer2cer,pp)
-    add_residuals(var_num, product(X,T,R[-1:]),cer2cerz,pp)    
+    add_residuals(var_num, product(X,T,R[1:]),cer2cer,pp)
+    # add_residuals(var_num, product(X,T,R[-1:]),cer2cerz,pp)    
     add_residuals(var_num, product(X[:1],T),tgp,pp,TGZ)
     add_residuals(var_num, product(X,R),tcp2tcr,pp)
 
     print ("reverse process")
     add_residuals(var_num, product(X,T,R[:1]),gas2gasr,pr)
     add_residuals(var_num, product(X,T,R[:1]),gas2cer,pr)
-    add_residuals(var_num, product(X,T,R[1:-1]),cer2cer,pr)
-    add_residuals(var_num, product(X,T,R[-1:]),cer2cerz,pr)    
+    add_residuals(var_num, product(X,T,R[1:]),cer2cer,pr)
+    # add_residuals(var_num, product(X,T,R[-1:]),cer2cerz,pr)    
     add_residuals(var_num, product(X[-1:],T),tgr,pr,val=TBZ)
     add_residuals(var_num, product(X,R),tcr2tcp,pr)
         
