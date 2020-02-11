@@ -104,7 +104,7 @@ venv.bak/
 .mypy_cache/
 
 # Temporary files
-out
+out*
 *.dat
 
 test1
@@ -121,3 +121,4 @@ poly3d
 
 dat*
 otkl
+tbl*
