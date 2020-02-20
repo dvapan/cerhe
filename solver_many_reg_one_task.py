@@ -8,7 +8,7 @@ import lp_utils as lut
 from constants import *
 
 
-tg, tc, tgr, tcr = ut.make_gas_cer_quad(2, 3)
+tg, tc, tgr, tcr = ut.make_gas_cer_quad(2, max_poly_degree)
 
 funcs = dict({
     'be1' : lambda x: (tg(x) - tc(x)) * coef["k1"] + coef["k2"] * (tg(x, [1, 0]) * coef["wg"] + tg(x, [0, 1])),
@@ -30,8 +30,8 @@ funcsr = dict({
 })
 
 
-balance_coeff = 20
-temp_coeff = 10
+balance_coeff = 10
+temp_coeff = 1
 
 eq_resid=dict({
     'be1': balance_coeff,
@@ -138,7 +138,13 @@ def main():
                                                ['gas_r', 'cer_r']),
                              ut.intemod_constraints(['cer'], "cer_p", "cer_r")))))
 
-    x,dx,dz = lut.slvlprd(q, 40*max_reg+1, TGZ,True)
+    var_num = 0
+    for el in [tg,tc,tgr,tcr]:
+        print(el.coeff_size)
+        var_num+=el.coeff_size
+
+    
+    x,dx,dz = lut.slvlprd(q, var_num*max_reg+1, TGZ,True)
 
     pc = sc.split(x[:-1],max_reg)
 
