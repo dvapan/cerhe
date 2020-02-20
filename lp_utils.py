@@ -9,7 +9,6 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
     print("LOAD TO LP")
     s = CyClpSimplex()
     x = s.addVariable('x', lp_dim)
-    xdop_ar = sc.zeros(lp_dim + 1)
     A = prb[:, 1:]
     A = sc.matrix(A)
     b = prb[:, 0]
@@ -19,7 +18,7 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
     s += x[lp_dim-1] <= xdop
     s.objective = x[lp_dim-1]
     print ("START")
-    s.dual()
+    s.primal()
     outx = s.primalVariableSolution['x']
     if flag:
         sc.savetxt("dat",A,fmt="%+16.5f")
