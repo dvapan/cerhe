@@ -10,42 +10,39 @@ import utils
 from solver3d import coeffs
 regsize = 0
 
+def make_id(i,j):
+    return i*xreg + j
+
+
 pc = np.loadtxt("poly_coeff_3d")
+pc = pc.reshape((max_reg, -1))
+print(pc)
 
-tgp = Polynom(2, 7)
-tcp = Polynom(3, 7)
-tgr = Polynom(2, 7)
-tcr = Polynom(3, 7)
+tgp = list()
+tcp = list()
+tgr = list()
+tcr = list()
 
-context = Context()
-context.assign(tgp)
-context.assign(tcp)
-context.assign(tgr)
-context.assign(tcr)
+for i in range(max_reg):
+    tgp.append(Polynom(2, max_poly_degree))
+    tcp.append(Polynom(3, max_poly_degree))
+    tgr.append(Polynom(2, max_poly_degree))
+    tcr.append(Polynom(3, max_poly_degree))
 
-s,f = 0,tgp.coeff_size
-tgp.coeffs = pc[s:f]
-s,f = s+tgp.coeff_size,f+tcp.coeff_size
-tcp.coeffs = pc[s:f]
-s,f = s+tcp.coeff_size,f+tgr.coeff_size
-tgr.coeffs = pc[s:f]
-s,f = s+tgr.coeff_size,f+tcr.coeff_size
-tcr.coeffs = pc[s:f]
+    context = Context()
+    context.assign(tgp[i])
+    context.assign(tcp[i])
+    context.assign(tgr[i])
+    context.assign(tcr[i])
 
-def tcp2tcr(x, p):
-    x1 = x[0],T[-1],x[1]
-    r1 = tcp(x1)
-    x2 = x[0],T[0],x[1]
-    r2 = tcr(x2)
-    return r2 - r1
-
-def tcr2tcp(x, p):
-    x1 = x[0],T[-1],x[1]
-    r1 = tcr(x1)
-    x2 = x[0],T[ 0],x[1]
-    r2 = tcp(x2)
-    return r2 - r1
-
+    s,f = 0,tgp[i].coeff_size
+    tgp[i].coeffs = pc[i][s:f]
+    s,f = s+tgp[i].coeff_size,f+tcp[i].coeff_size
+    tcp[i].coeffs = pc[i][s:f]
+    s,f = s+tcp[i].coeff_size,f+tgr[i].coeff_size
+    tgr[i].coeffs = pc[i][s:f]
+    s,f = s+tgr[i].coeff_size,f+tcr[i].coeff_size
+    tcr[i].coeffs = pc[i][s:f]
 
 
 def main():
@@ -57,7 +54,7 @@ def main():
 
 
     var_num = 0
-    for el in [tgp,tcp,tgr,tcr]:
+    for el in [tgp[0],tcp[0],tgr[0],tcr[0]]:
         var_num += el.coeff_size
     print(var_num,1)
     # print("residual: ", pc[-1])
@@ -75,94 +72,107 @@ def main():
     f.write ("="*len(s)+"\n")
 
     max_residual = 0
-    
-    for t in T:
-        for x in X:
-            f.write("{:^{w}.3}".format(x,w=w) + " ")
-        f.write("\n")
-        for x in X:
-            f.write(info_fmt.format(*info) + " ")
-        f.write("\n")
-        
-        for x in X:
-            tg = tgp([x,t])[0]
-            dtgdx = tgp([x,t],[1,0])[0]
-            dtgdt = tgp([x,t],[0,1])[0]
-            tc = tcp([x,t,R[0]])[0]
-            eq_left = (tg - tc)*coef["k1"]
-            eq_right = -coef["k2"] * (dtgdx * coef["wg"] + dtgdt)
-            row_type = "gas2gasp"
-            d = eq_right-eq_left
-            max_residual = max(d/coeffs[row_type],max_residual)
-            f.write(fmts.format(row_type,t,"",tg,eq_left,d) + " ")
-        f.write("\n")
-        
-        for r in R:
-            for x in X:
-                tg = tgp([x,t])[0]
-                tc = tcp([x,t,r])[0]
-                dtcdt = tcp([x,t,r],[0,1,0])[0]
-                dtcdr = tcp([x,t,r],[0,0,1])[0]
-                d2tcdr2 = tcp([x,t,r],[0,0,2])[0]
-                if r == R[0]:
-                    row_type = "gas2cer"
-                    eq_right = coef["lam"] * dtcdr 
-                    eq_left = (tg-tc)*coef["alpha"]
-                else:
-                    eq_right = coef["a"]*(d2tcdr2 + 2/r * dtcdr)
-                    eq_left = dtcdt
-                    row_type = "cer2cer"
-                d = eq_right-eq_left
-                max_residual = max(d/coeffs[row_type],max_residual)                
-                f.write(fmts.format(row_type,"",r,tc,eq_left,d) + " ")
+
+    for i in range(treg):
+        for t in T_part[i]:
+            for j in range(xreg):
+                for x in X_part[j]:
+                    f.write("{:^{w}.3}".format(x,w=w) + " ")
             f.write("\n")
-        f.write(space+"\n")
+            for j in range(xreg):
+                for x in X_part[j]:
+                    f.write(info_fmt.format(*info) + " ")
+            f.write("\n")
+            
+            for j in range(xreg):
+                for x in X_part[j]:
+                    ind = make_id(i,j)
+                    tg = tgp[ind]([x,t])[0]
+                    dtgdx = tgp[ind]([x,t],[1,0])[0]
+                    dtgdt = tgp[ind]([x,t],[0,1])[0]
+                    tc = tcp[ind]([x,t,R[0]])[0]
+                    eq_left = (tg - tc)*coef["k1"]
+                    eq_right = -coef["k2"] * (dtgdx * coef["wg"] + dtgdt)
+                    row_type = "gas2gasp"
+                    d = eq_right-eq_left
+                    max_residual = max(d/coeffs[row_type],max_residual)
+                    f.write(fmts.format(row_type,t,"",tg,eq_left,d) + " ")
+            f.write("\n")
+        
+            for r in R:
+                for j in range(xreg):
+                    for x in X_part[j]:
+                        ind = make_id(i,j)
+                        tg = tgp[ind]([x,t])[0]
+                        tc = tcp[ind]([x,t,r])[0]
+                        dtcdt = tcp[ind]([x,t,r],[0,1,0])[0]
+                        dtcdr = tcp[ind]([x,t,r],[0,0,1])[0]
+                        d2tcdr2 = tcp[ind]([x,t,r],[0,0,2])[0]
+                        if r == R[0]:
+                            row_type = "gas2cer"
+                            eq_right = coef["lam"] * dtcdr 
+                            eq_left = (tg-tc)*coef["alpha"]
+                        else:
+                            eq_right = coef["a"]*(d2tcdr2 + 2/r * dtcdr)
+                            eq_left = dtcdt
+                            row_type = "cer2cer"
+                        d = eq_right-eq_left
+                        max_residual = max(d/coeffs[row_type],max_residual)                
+                        f.write(fmts.format(row_type,"",r,tc,eq_left,d) + " ")
+                f.write("\n")
+            f.write(space+"\n")
 
     f.write ("{:<{w}}".format("reverse",w=(w*len(X))) + "\n")
     f.write ("="*len(s) + "\n")
 
-    for t in T:
-        for x in X:
-            f.write("{:^{w}.3}".format(x,w=w) + " ")
-        f.write("\n")
-        for x in X:
-            f.write(info_fmt.format(*info) + " ")
-        f.write("\n")
-        
-        for x in X:
-            tg = tgr([x,t])[0]
-            dtgdx = tgr([x,t],[1,0])[0]
-            dtgdt = tgr([x,t],[0,1])[0]
-            tc = tcr([x,t,R[0]])[0]
-            eq_left = (tg - tc)*coef["k1"]
-            eq_right = coef["k2"] * (dtgdx * coef["wg"] + dtgdt)
-            row_type = "gas2gasr"
-            d = eq_right-eq_left
-            max_residual = max(d/coeffs[row_type],max_residual)
-            
-            f.write(fmts.format(row_type,t,"",tg,eq_left,d) + " ")
-        f.write("\n")
-        
-        for r in R:
-            for x in X:
-                tg = tgr([x,t])[0]
-                tc = tcr([x,t,r])[0]
-                dtcdt = tcr([x,t,r],[0,1,0])[0]
-                dtcdr = tcr([x,t,r],[0,0,1])[0]
-                d2tcdr2 = tcr([x,t,r],[0,0,2])[0]
-                if r == R[0]:
-                    eq_right = coef["lam"] * dtcdr
-                    eq_left = (tg-tc)*coef["alpha"]
-                    row_type = "gas2cer"
-                else:
-                    eq_right = coef["a"]*(d2tcdr2 + 2/r * dtcdr)
-                    eq_left = dtcdt
-                    row_type = "cer2cer"
-                d = eq_right-eq_left
-                max_residual = max(d/coeffs[row_type],max_residual)
-                f.write(fmts.format(row_type,"",r,tc,eq_left,d) + " ")
+    for i in range(treg):
+        for t in T_part[i]:
+            for j in range(xreg):
+                for x in X_part[j]:
+                    f.write("{:^{w}.3}".format(x,w=w) + " ")
             f.write("\n")
-        f.write(space + "\n")
+            for j in range(xreg):
+                for x in X_part[j]:
+                    f.write(info_fmt.format(*info) + " ")
+            f.write("\n")
+            
+            for j in range(xreg):
+                for x in X_part[j]:
+                    ind = make_id(i,j)
+                    tg = tgr[ind]([x,t])[0]
+                    dtgdx = tgr[ind]([x,t],[1,0])[0]
+                    dtgdt = tgr[ind]([x,t],[0,1])[0]
+                    tc = tcr[ind]([x,t,R[0]])[0]
+                    eq_left = (tg - tc)*coef["k1"]
+                    eq_right = coef["k2"] * (dtgdx * coef["wg"] + dtgdt)
+                    row_type = "gas2gasr"
+                    d = eq_right-eq_left
+                    max_residual = max(d/coeffs[row_type],max_residual)
+                    f.write(fmts.format(row_type,t,"",tg,eq_left,d) + " ")
+            f.write("\n")
+        
+            for r in R:
+                for j in range(xreg):
+                    for x in X_part[j]:
+                        ind = make_id(i,j)
+                        tg = tgr[ind]([x,t])[0]
+                        tc = tcr[ind]([x,t,r])[0]
+                        dtcdt = tcr[ind]([x,t,r],[0,1,0])[0]
+                        dtcdr = tcr[ind]([x,t,r],[0,0,1])[0]
+                        d2tcdr2 = tcr[ind]([x,t,r],[0,0,2])[0]
+                        if r == R[0]:
+                            row_type = "gas2cer"
+                            eq_right = coef["lam"] * dtcdr 
+                            eq_left = (tg-tc)*coef["alpha"]
+                        else:
+                            eq_right = coef["a"]*(d2tcdr2 + 2/r * dtcdr)
+                            eq_left = dtcdt
+                            row_type = "cer2cer"
+                        d = eq_right-eq_left
+                        max_residual = max(d/coeffs[row_type],max_residual)
+                        f.write(fmts.format(row_type,"",r,tc,eq_left,d) + " ")
+                f.write("\n")
+            f.write(space+"\n")
 
     f.write ("="*len(s) + "\n")
 
