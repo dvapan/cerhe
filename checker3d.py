@@ -46,7 +46,7 @@ for i in range(max_reg):
 
 
 def main():
-    ppr = 21                        # Точек на регион
+    ppr = 10                        # Точек на регион
 
     totalx = xreg*ppr - xreg + 1
     totalt = treg*ppr - treg + 1
@@ -57,7 +57,7 @@ def main():
 
     X = sc.linspace(0, length, totalx)
     T = sc.linspace(0, time, totalt)
-    R = sc.linspace(radius_inner, radius, 10)
+    R = sc.linspace(0.01*rball, rball, 10)
     R = R[::-1]
 
     X_part = list(mit.windowed(X,n=ppr,step = ppr-1))

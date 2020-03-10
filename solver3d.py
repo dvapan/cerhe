@@ -7,6 +7,8 @@ import lp_utils as lut
 from constants import *
 from polynom import Polynom, Context
 import sys
+import progressbar
+
 
 regsize = 0
 tgp = Polynom(2, max_poly_degree)
@@ -252,7 +254,6 @@ def main():
             
     prb = sc.vstack(prb_chain)
     x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ,False)
-    print(x)
     pc = sc.split(x[:-1],max_reg)
     residual = x[-1]
     
