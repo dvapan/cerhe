@@ -2,10 +2,11 @@ import scipy as sc
 from constants import fgib,dekb,MN
 
 TBZ = 778.17                  # Т-ра воздуха в начальный момент времени [К]
-PB = 7.6                     # Давление воздуха на входе
+PB = 20.9                     # Давление воздуха на входе
 GB = 11.426                   # расход воздуха
 MM = 28.98                    # Молекулярная масса воздуха
 
+# Состав воздуха
 COMPOSITION = sc.array([
     0.7594,                     # N_2
     0.2306,                     # O_2
@@ -26,13 +27,14 @@ def CB(T):    # Изобарная теплоемкость воздуха
     return B
 
 def REPRB(TK, P, W, D):
-    VB = volume(TK, P)
+    VB = volume(P, TK)
     C = CB(TK)
     T = TK - 273.15
     # Кинематическая вязкость
     ZNU = ((((0.23531342E-16 * T - 0.56219934E-13) * T + 0.11379092E-9) * T + 0.86303219E-7) + 0.13334426E-4) * 760. / (P * 735.)
     # Коэффициент теплопроводности
     ALA = (((-0.10448614E-14 * T + 0.73307439E-11) * T - 0.22533805E-7) * T + 0.64300069E-4) * T + 0.021049487
+    print (ZNU,C,ALA,VB)
     PR = 3600. * ZNU * C / (ALA * VB)
     ZMU = ZNU / (9.81 * VB) # Динамическая вязкость 
     RE = W * D / ZNU
@@ -58,6 +60,7 @@ def air_coefficients(T):
     CG = CB(T)
     WG = gas_speed(GB, VB, fgib)
     RE,PR,VM,ALA,ZMUM = REPRB(T,PB,WG,dekb)
+    # print(RE,PR,ALA,dekb,MN, WG)
     ALF = (calc_NUS(RE, PR) * ALA /dekb) /MN
     PO = 1/VB
     return ALF, PO

@@ -6,8 +6,8 @@ TGZ = 1800                    # Т-ра газа на входе в теплоо
 PG = 7.6                      # Давление газа на входе 
 
 # Покомпонентный расход газа
-GG = sc.array([6.12600,         # N_2
-               0.65900,         # O_2
+GG = sc.array([6.126,         # N_2
+               0.659,         # O_2
                1.53780,         # CO_2
                0.41788          # H_2O
 ]) 
@@ -111,8 +111,8 @@ def REPRS(GG,TK,PG,W,D1):
     NU = sc.polyval(A,T)
     NU=NU*760./(PG*735.)
     LA=sc.polyval(B,T)
-
-    PR=3600.*NU*CPM*ROM/LA
+    print(NU,CPM,LA,VM)
+    PR=3600.*NU*CPM/(LA*VM)
     PR=(0.94+0.56*RH2O)*PR
     RE=W*D1/NU
     ZMUM=NU*ROM
@@ -139,6 +139,7 @@ def gas_coefficients(TG):
     CG = CGSS(TG, *GG)
     WG = gas_speed(sum(GG), VG, fgib)
     RE, PR, VM, ALA, ZMUM = REPRS(GG,TG,PG,WG, dekb)
+    # print(RE,PR,ALA,dekb,MN, WG)
     ALF = calc_NUS(RE, PR)*ALA/dekb / MN
     PO = 1. / VG
     return ALF, PO
