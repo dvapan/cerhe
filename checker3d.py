@@ -110,7 +110,7 @@ def main():
                     tc = tcp[ind]([x,t,R[0]])[0]
                     ALF,PO, CG, WG= gas_coefficients(tg)
                     eq_left = (tg - tc) * ALF* surf_spec
-                    eq_right = -PO*fgib* CG*  (dtgdt* WG + dtgdt)
+                    eq_right = -PO*fgib* CG*  (dtgdx* WG + dtgdt)
                     row_type = "gas2gasp"
                     d = eq_right-eq_left
                     max_residual = max(d/coeffs[row_type],max_residual)
@@ -130,13 +130,14 @@ def main():
                             row_type = "gas2cer"
                             ALF,_, _, _= gas_coefficients(tg)
                             LAM = cp.lam(tc)
-                            eq_right = LAM * dtcdr 
+                            eq_right = LAM * dtcdr
                             eq_left = (tg-tc)*ALF
                         else:
                             A = cp.a(tc)
                             eq_right = A*(d2tcdr2 + 2/r * dtcdr)
                             eq_left = dtcdt
                             row_type = "cer2cer"
+                            
                         d = eq_right-eq_left
                         max_residual = max(d/coeffs[row_type],max_residual)                
                         f.write(fmts.format(row_type,"",r,tc,eq_left,d) + " ")
@@ -166,7 +167,7 @@ def main():
                     tc = tcr[ind]([x,t,R[0]])[0]
                     ALF,PO, CG, WG= air_coefficients(tg)
                     eq_left = (tg - tc) * ALF* surf_spec
-                    eq_right = PO*fgib* CG*  (dtgdt* WG + dtgdt)
+                    eq_right = PO*fgib* CG*  (dtgdx* WG + dtgdt)
                     row_type = "gas2gasr"
                     d = eq_right-eq_left
                     max_residual = max(d/coeffs[row_type],max_residual)

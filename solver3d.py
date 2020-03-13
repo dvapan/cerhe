@@ -55,10 +55,9 @@ def gas2gasr(x,p):
     ALF,PO, CG, WG= air_coefficients(tg[0])
     # print("air",ALF, PO, CG, WG)
     lbalance = (tg - tc) * ALF* surf_spec
-    rbalance = PO*fgib* CG*  (dtgdt* WG + dtgdt)
+    rbalance = PO*fgib* CG*  (dtgdx* WG + dtgdt)
     return  lbalance - rbalance
 
-    
 def gas2gasp(x,p):
     tg = p[0](x[:-1])
     dtgdx = p[0](x[:-1], [1, 0])
@@ -67,7 +66,7 @@ def gas2gasp(x,p):
     ALF,PO, CG, WG= gas_coefficients(tg[0])
     # print("gas",ALF, PO, CG, WG)
     lbalance = (tg - tc) * ALF* surf_spec
-    rbalance = PO*fgib* CG*  (dtgdt* WG + dtgdt)
+    rbalance = PO*fgib* CG*  (dtgdx* WG + dtgdt)
     return  lbalance + rbalance
 
 def gas2cer(x, p):
@@ -115,7 +114,7 @@ def difference(x,p):
 
 balance_coeff = 1
 temp_coeff = 1
-cer_coeff = 1
+cer_coeff = 0.001
 prb_chain = []
 
 coeffs = {
@@ -197,9 +196,8 @@ def heating_gas(ind, X, T, R):
 def cooling_gas(ind, X, T, R):
     add_residuals(ind, var_num, product(X[-1:],T),tgr,pr,val=TBZ)
 
-def main():
-    print("preset coeffs")
-    
+
+def solve(tgp,tcp,tgr,tcr):
     #########################################################################
     print("count bound constraints for gas")
     print("heating")
@@ -294,7 +292,10 @@ def main():
                                   product(X_part[j],T_part[i+1][:1],R),
                                   tcr,tcr)
 
-            
+
+    
+def main():
+    solve(tgp,tcp,tgr,tcr)
     prb = sc.vstack(prb_chain)
     sc.savetxt("prb",prb)
     x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ,False)
