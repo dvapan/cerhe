@@ -1,4 +1,5 @@
 import scipy as sc
+from constants import MN,vbckfill
 
 MASS = 26.98154*2+15.9994*3       # Al2O3 г/моль
 

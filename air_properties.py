@@ -34,7 +34,6 @@ def REPRB(TK, P, W, D):
     ZNU = ((((0.23531342E-16 * T - 0.56219934E-13) * T + 0.11379092E-9) * T + 0.86303219E-7) + 0.13334426E-4) * 760. / (P * 735.)
     # Коэффициент теплопроводности
     ALA = (((-0.10448614E-14 * T + 0.73307439E-11) * T - 0.22533805E-7) * T + 0.64300069E-4) * T + 0.021049487
-    print (ZNU,C,ALA,VB)
     PR = 3600. * ZNU * C / (ALA * VB)
     ZMU = ZNU / (9.81 * VB) # Динамическая вязкость 
     RE = W * D / ZNU
@@ -60,14 +59,15 @@ def air_coefficients(T):
     CG = CB(T)
     WG = gas_speed(GB, VB, fgib)
     RE,PR,VM,ALA,ZMUM = REPRB(T,PB,WG,dekb)
-    # print(RE,PR,ALA,dekb,MN, WG)
     ALF = (calc_NUS(RE, PR) * ALA /dekb) /MN
     PO = 1/VB
-    return ALF, PO
+    return ALF, PO, CG, WG
 
 if __name__ == "__main__":
     import sys
     T = float(sys.argv[1])
-    ALF, PO = air_coefficients(T)
-    print("Коэффициент теплопередачи [kcal/m^2*s*K] ALF =", ALF)
-    print("Плотность газа            [кг/м^3]       PO  =", PO)
+    ALF, PO, CG, WG = air_coefficients(T)
+    print("Коэффициент теплопередачи, [kcal/m^2*s*K], ALF =", ALF)
+    print("Плотность газа, [kg/m^3], PO  =", PO)
+    print("Теплоемкость газа, [kcal/kg*K], CG  =", CG)
+    print("Скорость газа, [m/s], WG  =", WG)

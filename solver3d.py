@@ -9,12 +9,12 @@ from polynom import Polynom, Context
 import sys
 import progressbar
 
-
+t_def = 1000
 regsize = 0
-tgp = Polynom(2, max_poly_degree)
-tcp = Polynom(3, max_poly_degree)
-tgr = Polynom(2, max_poly_degree)
-tcr = Polynom(3, max_poly_degree)
+tgp = Polynom(2, max_poly_degree, t_def)
+tcp = Polynom(3, max_poly_degree, t_def)
+tgr = Polynom(2, max_poly_degree, t_def)
+tcr = Polynom(3, max_poly_degree, t_def)
 
 context = Context()
 context.assign(tgp)
@@ -33,19 +33,66 @@ for el in [tgp,tcp,tgr,tcr]:
 print(var_num,1)
 print(var_num*max_reg,1)
 
+from gas_properties import TGZ, gas_coefficients
+from air_properties import TBZ, air_coefficients
+
+import ceramic_properties as cp
 
 def cer2cer(x,p):
-    return p[1](x,[0, 1, 0]) - coef["a"]*(p[1](x,[0,0,2]) + 2/x[2] * p[1](x,[0,0,1])) 
+    tc = p[1](x)
+    dtcdt = p[1](x,[0, 1, 0])
+    dtcdr = p[1](x,[0,0,1])
+    dtcdr2 = p[1](x,[0,0,2])
+    A = cp.a(tc[0])
+    # print("cer2cer",A)
+    return dtcdt - A*(dtcdr2 + 2/x[2] * dtcdr) 
     
 def gas2gasr(x,p):
-    return (p[0](x[:-1]) - p[1](x)) * coef["k1"] - coef["k2"] * (p[0](x[:-1], [1, 0]) * coef["wg"] + p[0](x[:-1], [0, 1]))
+    tg = p[0](x[:-1])
+    dtgdx = p[0](x[:-1], [1, 0])
+    dtgdt = p[0](x[:-1], [0, 1])
+    tc = p[1](x)
+    ALF,PO, CG, WG= air_coefficients(tg[0])
+    # print("air",ALF, PO, CG, WG)
+    lbalance = (tg - tc) * ALF* surf_spec
+    rbalance = PO*fgib* CG*  (dtgdt* WG + dtgdt)
+    return  lbalance - rbalance
 
     
 def gas2gasp(x,p):
-    return (p[0](x[:-1]) - p[1](x)) * coef["k1"] + coef["k2"] * (p[0](x[:-1], [1, 0]) * coef["wg"] + p[0](x[:-1], [0, 1]))
+    tg = p[0](x[:-1])
+    dtgdx = p[0](x[:-1], [1, 0])
+    dtgdt = p[0](x[:-1], [0, 1])
+    tc = p[1](x)
+    ALF,PO, CG, WG= gas_coefficients(tg[0])
+    # print("gas",ALF, PO, CG, WG)
+    lbalance = (tg - tc) * ALF* surf_spec
+    rbalance = PO*fgib* CG*  (dtgdt* WG + dtgdt)
+    return  lbalance + rbalance
 
 def gas2cer(x, p):
-    return (p[0](x[:-1]) - p[1](x)) * coef["alpha"] - coef["lam"] * p[1](x, [0, 0, 1])
+    tg = p[0](x[:-1])
+    tc = p[1](x)
+    dtcdr = p[1](x, [0, 0, 1])
+    ALF,_, _, _= gas_coefficients(tg[0])
+    LAM = cp.lam(tc[0])
+    # print("gas2cer", ALF, LAM)
+    lbalance = (tg - tc) * ALF
+    rbalance =  LAM * dtcdr
+    return lbalance - rbalance
+
+def air2cer(x, p):
+    tg = p[0](x[:-1])
+    tc = p[1](x)
+    dtcdr = p[1](x, [0, 0, 1])
+    ALF,_, _, _= air_coefficients(tg[0])
+    LAM = cp.lam(tc[0])
+    # print("air2cer", ALF, LAM)
+
+    lbalance = (tg - tc) * ALF
+    rbalance = LAM * dtcdr
+    return lbalance - rbalance
+
 
 def tcp2tcr(x, p):
     x1 = x[0],T[-1],x[1]
@@ -68,7 +115,7 @@ def difference(x,p):
 
 balance_coeff = 1
 temp_coeff = 1
-cer_coeff = 0.001
+cer_coeff = 1
 prb_chain = []
 
 coeffs = {
@@ -78,6 +125,7 @@ coeffs = {
     "gas2gasp" : balance_coeff,
     "gas2gasr" : balance_coeff,
     "gas2cer"  : cer_coeff,
+    "air2cer"  : cer_coeff,
     "cer2cer"  : cer_coeff,
 }
 
@@ -122,12 +170,10 @@ def add_residuals(ind, var_num, domain, diff_eq, p=None, val=0):
             r = diff_eq(x,p)
 
         r /= coeffs[diff_eq.__name__]
-#        val /= coeffs[diff_eq.__name__]
         add_residual(ind, var_num,r[1:],val)
 
 
 def add_residuals_interreg(ind1,ind2, var_num, domain1, domain2, diff_eq1, diff_eq2, p=None, val=0):
-    # print(diff_eq.__name__)
     for x1,x2 in zip(domain1,domain2):
         r1 = diff_eq1(x1)
         r2 = diff_eq2(x2)
@@ -140,7 +186,7 @@ def count_part(ind,X,T,R):
     add_residuals(ind, var_num, product(X,T,R[1:]),cer2cer,pp)
 
     add_residuals(ind, var_num, product(X,T,R[:1]),gas2gasr,pr)
-    add_residuals(ind, var_num, product(X,T,R[:1]),gas2cer,pr)
+    add_residuals(ind, var_num, product(X,T,R[:1]),air2cer,pr)
     add_residuals(ind, var_num, product(X,T,R[1:]),cer2cer,pr)
 
     
@@ -151,12 +197,9 @@ def heating_gas(ind, X, T, R):
 def cooling_gas(ind, X, T, R):
     add_residuals(ind, var_num, product(X[-1:],T),tgr,pr,val=TBZ)
 
-# def heating_ceramic(ind, X, T, R):
-
-# def cooling_ceramic(ind, X, T, R):
-#     add_residuals_interreg(ind, var_num, product(X,R),tcr2tcp,[tcr,tcp])
-
 def main():
+    print("preset coeffs")
+    
     #########################################################################
     print("count bound constraints for gas")
     print("heating")
@@ -253,6 +296,7 @@ def main():
 
             
     prb = sc.vstack(prb_chain)
+    sc.savetxt("prb",prb)
     x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ,False)
     pc = sc.split(x[:-1],max_reg)
     residual = x[-1]

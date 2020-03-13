@@ -26,12 +26,13 @@ class Context:
 
 
 class Polynom:
-    def __init__(self, count_var, degree):
+    def __init__(self, count_var, degree, val=0):
         self.__name__ = "polynom"
         self.count_var = count_var
         self.degree = degree
         self.coeff_size = len(pow_indices(count_var, degree))
         self.coeffs = sc.zeros(self.coeff_size)
+        self.coeffs[0] = val
         self.var_coeffs = None
         self.owner = None
 

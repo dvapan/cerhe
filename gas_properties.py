@@ -111,7 +111,6 @@ def REPRS(GG,TK,PG,W,D1):
     NU = sc.polyval(A,T)
     NU=NU*760./(PG*735.)
     LA=sc.polyval(B,T)
-    print(NU,CPM,LA,VM)
     PR=3600.*NU*CPM/(LA*VM)
     PR=(0.94+0.56*RH2O)*PR
     RE=W*D1/NU
@@ -139,15 +138,16 @@ def gas_coefficients(TG):
     CG = CGSS(TG, *GG)
     WG = gas_speed(sum(GG), VG, fgib)
     RE, PR, VM, ALA, ZMUM = REPRS(GG,TG,PG,WG, dekb)
-    # print(RE,PR,ALA,dekb,MN, WG)
     ALF = calc_NUS(RE, PR)*ALA/dekb / MN
     PO = 1. / VG
-    return ALF, PO
+    return ALF, PO, CG, WG
     
 if __name__ == "__main__":
     import sys
     T = float(sys.argv[1])
-    ALF, PO = gas_coefficients(T)
-    print("Коэффициент теплопередачи [kcal/m^2*s*K] ALF =", ALF)
-    print("Плотность газа            [кг/м^3]       PO  =", PO)
+    ALF, PO, CG, WG = gas_coefficients(T)
+    print("Коэффициент теплопередачи, [kcal/m^2*s*K], ALF =", ALF)
+    print("Плотность газа, [kg/m^3], PO  =", PO)
+    print("Теплоемкость газа, [kcal/kg*K], CG  =", CG)
+    print("Скорость газа, [m/s], WG  =", WG)
 

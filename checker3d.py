@@ -7,6 +7,12 @@ from constants import *
 from polynom import Polynom, Context
 import utils
 
+from gas_properties import TGZ, gas_coefficients
+from air_properties import TBZ, air_coefficients
+
+import ceramic_properties as cp
+
+
 from solver3d import coeffs
 regsize = 0
 
@@ -102,8 +108,9 @@ def main():
                     dtgdx = tgp[ind]([x,t],[1,0])[0]
                     dtgdt = tgp[ind]([x,t],[0,1])[0]
                     tc = tcp[ind]([x,t,R[0]])[0]
-                    eq_left = (tg - tc)*coef["k1"]
-                    eq_right = -coef["k2"] * (dtgdx * coef["wg"] + dtgdt)
+                    ALF,PO, CG, WG= gas_coefficients(tg)
+                    eq_left = (tg - tc) * ALF* surf_spec
+                    eq_right = -PO*fgib* CG*  (dtgdt* WG + dtgdt)
                     row_type = "gas2gasp"
                     d = eq_right-eq_left
                     max_residual = max(d/coeffs[row_type],max_residual)
@@ -121,10 +128,13 @@ def main():
                         d2tcdr2 = tcp[ind]([x,t,r],[0,0,2])[0]
                         if r == R[0]:
                             row_type = "gas2cer"
-                            eq_right = coef["lam"] * dtcdr 
-                            eq_left = (tg-tc)*coef["alpha"]
+                            ALF,_, _, _= gas_coefficients(tg)
+                            LAM = cp.lam(tc)
+                            eq_right = LAM * dtcdr 
+                            eq_left = (tg-tc)*ALF
                         else:
-                            eq_right = coef["a"]*(d2tcdr2 + 2/r * dtcdr)
+                            A = cp.a(tc)
+                            eq_right = A*(d2tcdr2 + 2/r * dtcdr)
                             eq_left = dtcdt
                             row_type = "cer2cer"
                         d = eq_right-eq_left
@@ -154,8 +164,9 @@ def main():
                     dtgdx = tgr[ind]([x,t],[1,0])[0]
                     dtgdt = tgr[ind]([x,t],[0,1])[0]
                     tc = tcr[ind]([x,t,R[0]])[0]
-                    eq_left = (tg - tc)*coef["k1"]
-                    eq_right = coef["k2"] * (dtgdx * coef["wg"] + dtgdt)
+                    ALF,PO, CG, WG= air_coefficients(tg)
+                    eq_left = (tg - tc) * ALF* surf_spec
+                    eq_right = PO*fgib* CG*  (dtgdt* WG + dtgdt)
                     row_type = "gas2gasr"
                     d = eq_right-eq_left
                     max_residual = max(d/coeffs[row_type],max_residual)
@@ -173,10 +184,13 @@ def main():
                         d2tcdr2 = tcr[ind]([x,t,r],[0,0,2])[0]
                         if r == R[0]:
                             row_type = "gas2cer"
-                            eq_right = coef["lam"] * dtcdr 
-                            eq_left = (tg-tc)*coef["alpha"]
+                            ALF,_, _, _= gas_coefficients(tg)
+                            LAM = cp.lam(tc)
+                            eq_right = LAM * dtcdr 
+                            eq_left = (tg-tc)*ALF
                         else:
-                            eq_right = coef["a"]*(d2tcdr2 + 2/r * dtcdr)
+                            A = cp.a(tc)
+                            eq_right = A*(d2tcdr2 + 2/r * dtcdr)
                             eq_left = dtcdt
                             row_type = "cer2cer"
                         d = eq_right-eq_left
