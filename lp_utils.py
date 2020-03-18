@@ -25,5 +25,5 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
         sc.savetxt("datb",b,fmt="%+16.5f")
         tt = A.dot(outx)
         sc.savetxt("otkl",tt.T, fmt="%16.5f")
-    return outx, A.dot(outx) - b, s.dualConstraintSolution["R_1"]
+    return outx, A.dot(outx) - b, s.dualConstraintSolution
 

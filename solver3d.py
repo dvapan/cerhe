@@ -115,7 +115,7 @@ def difference(x,p):
 balance_coeff = 1
 temp_coeff = 1
 cer_coeff = 0.001
-prb_chain = []
+# prb_chain = []
 
 coeffs = {
     "polynom"  : temp_coeff,
@@ -198,6 +198,9 @@ def cooling_gas(ind, X, T, R):
 
 
 def solve(tgp,tcp,tgr,tcr):
+    global prb_chain
+    prb_chain = []
+
     #########################################################################
     print("count bound constraints for gas")
     print("heating")
@@ -295,15 +298,38 @@ def solve(tgp,tcp,tgr,tcr):
 
     
 def main():
+    global prb_chain
     solve(tgp,tcp,tgr,tcr)
     prb = sc.vstack(prb_chain)
     sc.savetxt("prb",prb)
     x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ,False)
     pc = sc.split(x[:-1],max_reg)
     residual = x[-1]
+    sc.savetxt("poly_coeff_3d",pc)
+    cnt_iter = 0
+    while True:
+        prb_chain = []
+        cnt_iter += 1
+        print ("{:#^100}".format("ITERATION {}".format(cnt_iter)))
+        i = 0
+        s,f = 0,tgp.coeff_size
+        tgp.coeffs = pc[i][s:f]
+        s,f = s+tgp.coeff_size,f+tcp.coeff_size
+        tcp.coeffs = pc[i][s:f]
+        s,f = s+tcp.coeff_size,f+tgr.coeff_size
+        tgr.coeffs = pc[i][s:f]
+        s,f = s+tgr.coeff_size,f+tcr.coeff_size
+        tcr.coeffs = pc[i][s:f]
+
+        solve(tgp,tcp,tgr,tcr)
+        prb = sc.vstack(prb_chain)
+        sc.savetxt("prb",prb)
+        x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ,False)
+        pc = sc.split(x[:-1],max_reg)
+        residual = x[-1]
     
     sc.savetxt("poly_coeff_3d",pc)
-    
+
 
 if __name__ == "__main__":
     main()
