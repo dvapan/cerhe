@@ -53,7 +53,7 @@ TG = 1000
 
 # Параметры сетки
 
-xreg,treg = 1,1
+xreg,treg = 1,1# 3,3
 max_reg = xreg*treg
 max_poly_degree = 3
 ppr = 10                        # Точек на регион
@@ -75,4 +75,4 @@ T_part = list(mit.windowed(T,n=ppr,step = ppr-1))
 index_info = 0
 cnt_var = 0
 
-
+epsilon = 0.1

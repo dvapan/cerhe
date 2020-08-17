@@ -46,7 +46,7 @@ def cer2cer(x,p):
     A = cp.a(tc[0])
     # print("cer2cer",A)
     return (dtcdt - A*(dtcdr2 + 2/x[2] * dtcdr))
-    
+
 def gas2gasr(x,p):
     tg = p[0](x[:-1])
     dtgdx = p[0](x[:-1], [1, 0])
@@ -320,7 +320,7 @@ def main():
     residual = x[-1]
     sc.savetxt("poly_coeff_3d",pc)
     sc.savetxt("tmp", dx.reshape((-1,1)))
-    counted_coeffs = [] #abs(dx.reshape((-1,1)))
+    counted_coeffs = abs(dx.reshape((-1,1)))
     print (counted_coeffs)
     cnt_iter = 0
     while True:
@@ -339,8 +339,9 @@ def main():
 
         make_solution(tgp,tcp,tgr,tcr)
         prb = sc.vstack(prb_chain)
-        prb[:,:-1]/=counted_coeffs
+        prb[:,:-1]/=counted_coeffs*epsilon
         x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
+        counted_coeffs = abs(dx.reshape((-1,1)))
         pc = sc.split(x[:-1],max_reg)
         print(abs(x[-1]-residual))
         if abs(x[-1]-residual)<0.01:
