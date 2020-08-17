@@ -312,7 +312,7 @@ def make_solution(tgp,tcp,tgr,tcr, coeffs=coeffs_default):
 def main():
     global prb_chain
     global counted_coeffs
-    solve(tgp,tcp,tgr,tcr)
+    make_solution(tgp,tcp,tgr,tcr)
     prb = sc.vstack(prb_chain)
     sc.savetxt("prb",prb)
     x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
@@ -337,7 +337,7 @@ def main():
         s,f = s+tgr.coeff_size,f+tcr.coeff_size
         tcr.coeffs = pc[i][s:f]
 
-        solve(tgp,tcp,tgr,tcr)
+        make_solution(tgp,tcp,tgr,tcr)
         prb = sc.vstack(prb_chain)
         prb[:,:-1]/=counted_coeffs
         x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
