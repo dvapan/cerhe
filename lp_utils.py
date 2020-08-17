@@ -4,7 +4,7 @@ import scipy as sc
 
 VBND = 10**3
 
-def slvlprd(prb, lp_dim, xdop, flag=False):
+def slvlprd(prb, lp_dim, xdop):
     """Solve linear problem with one residual by cylp"""
     print("LOAD TO LP")
     s = CyClpSimplex()
@@ -20,10 +20,5 @@ def slvlprd(prb, lp_dim, xdop, flag=False):
     print ("START")
     s.primal()
     outx = s.primalVariableSolution['x']
-    if flag:
-        sc.savetxt("dat",A,fmt="%+16.5f")
-        sc.savetxt("datb",b,fmt="%+16.5f")
-        tt = A.dot(outx)
-        sc.savetxt("otkl",tt.T, fmt="%16.5f")
     return outx, A.dot(outx) - b, s.dualConstraintSolution
 

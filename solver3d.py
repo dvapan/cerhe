@@ -45,7 +45,7 @@ def cer2cer(x,p):
     dtcdr2 = p[1](x,[0,0,2])
     A = cp.a(tc[0])
     # print("cer2cer",A)
-    return dtcdt - A*(dtcdr2 + 2/x[2] * dtcdr) 
+    return (dtcdt - A*(dtcdr2 + 2/x[2] * dtcdr))
     
 def gas2gasr(x,p):
     tg = p[0](x[:-1])
@@ -117,6 +117,7 @@ temp_coeff = 1
 cer_coeff = 0.001
 # prb_chain = []
 
+
 coeffs = {
     "polynom"  : temp_coeff,
     "tcp2tcr"  : temp_coeff,
@@ -127,6 +128,14 @@ coeffs = {
     "air2cer"  : cer_coeff,
     "cer2cer"  : cer_coeff,
 }
+
+def coeffs_default(ind,name=None):
+    return coeffs[name]
+
+counted_coeffs = None
+
+def coeffs_counted(ind,name=None):
+    return counted_coeffs[ind]
 
 def shifted(cffs,shift):
     psize = len(cffs[1:-1])
@@ -145,7 +154,8 @@ def add_residual(ind, var_num, monoms, val=0):
     prb_chain.append(part_prim)
     prb_chain.append(part_revr)
 
-def add_residual_interreg(ind1,ind2, var_num, monoms1,monoms2, val=0):
+def add_residual_interreg(ind1,ind2, var_num, monoms1,monoms2):
+    val = 0
     part_prim1 = shifted(sc.hstack([val,monoms1,[1]]),ind1)
     part_revr1 = shifted(sc.hstack([-val,-monoms1,[1]]),ind1)
 
@@ -160,7 +170,7 @@ def add_residual_interreg(ind1,ind2, var_num, monoms1,monoms2, val=0):
     prb_chain.append(part_revr)
 
 
-def add_residuals(ind, var_num, domain, diff_eq, p=None, val=0):
+def add_residuals(ind, var_num, domain, diff_eq, p, val=0, coeffs=coeffs_default):
     # print(diff_eq.__name__)
     for x in domain:
         if diff_eq.__name__ == "polynom":
@@ -168,18 +178,20 @@ def add_residuals(ind, var_num, domain, diff_eq, p=None, val=0):
         else:
             r = diff_eq(x,p)
 
-        r /= coeffs[diff_eq.__name__]
+        # r /= coeffs(ind,diff_eq.__name__)
         add_residual(ind, var_num,r[1:],val)
 
 
-def add_residuals_interreg(ind1,ind2, var_num, domain1, domain2, diff_eq1, diff_eq2, p=None, val=0):
+def add_residuals_interreg(ind1,ind2, var_num, domain1, domain2, diff_eq1, diff_eq2, coeffs):
     for x1,x2 in zip(domain1,domain2):
         r1 = diff_eq1(x1)
         r2 = diff_eq2(x2)
-        add_residual_interreg(ind1,ind2, var_num,r1[1:],r2[1:],val)
+        # r1 /= coeffs(ind1,diff_eq1.__name__)
+        # r2 /= coeffs(ind2,diff_eq2.__name__)
+        add_residual_interreg(ind1,ind2, var_num,r1[1:],r2[1:])
 
 
-def count_part(ind,X,T,R):
+def count_part(ind,X,T,R, coeffs):
     add_residuals(ind, var_num, product(X,T,R[:1]),gas2gasp,pp)
     add_residuals(ind, var_num, product(X,T,R[:1]),gas2cer,pp)
     add_residuals(ind, var_num, product(X,T,R[1:]),cer2cer,pp)
@@ -189,15 +201,15 @@ def count_part(ind,X,T,R):
     add_residuals(ind, var_num, product(X,T,R[1:]),cer2cer,pr)
 
     
-def heating_gas(ind, X, T, R):
-    add_residuals(ind, var_num, product(X[:1],T),tgp,pp,TGZ)
+def heating_gas(ind, X, T, R, coeffs):
+    add_residuals(ind, var_num, product(X[:1],T),tgp,pp,TGZ, coeffs)
 
     
-def cooling_gas(ind, X, T, R):
-    add_residuals(ind, var_num, product(X[-1:],T),tgr,pr,val=TBZ)
+def cooling_gas(ind, X, T, R, coeffs):
+    add_residuals(ind, var_num, product(X[-1:],T),tgr,pr, TBZ, coeffs)
 
 
-def solve(tgp,tcp,tgr,tcr):
+def make_solution(tgp,tcp,tgr,tcr, coeffs=coeffs_default):
     global prb_chain
     prb_chain = []
 
@@ -206,12 +218,12 @@ def solve(tgp,tcp,tgr,tcr):
     print("heating")
     for i in range(treg):
         ind = make_id(i,0)
-        heating_gas(ind, X_part[0], T_part[i], R)
+        heating_gas(ind, X_part[0], T_part[i], R, coeffs)
 
     print("cooling")
     for i in range(treg):
         ind = make_id(i,xreg-1)
-        cooling_gas(ind, X_part[xreg-1], T_part[i], R)
+        cooling_gas(ind, X_part[xreg-1], T_part[i], R, coeffs)
 
     ##########################################################################
     print("count bound constraints for ceramic")
@@ -222,7 +234,7 @@ def solve(tgp,tcp,tgr,tcr):
         add_residuals_interreg(ind1, ind2, var_num,
                                product(X_part[j],T_part[0][:1],R),
                                product(X_part[j],T_part[-1][-1:],R),
-                               tcp,tcr)
+                               tcp,tcr, coeffs)
 
 
     print("cooling")
@@ -232,7 +244,7 @@ def solve(tgp,tcp,tgr,tcr):
         add_residuals_interreg(ind1, ind2, var_num,
                                product(X_part[j],T_part[0][:1],R),
                                product(X_part[j],T_part[-1][-1:],R),
-                               tcr,tcp)
+                               tcr,tcp, coeffs)
 
     ##########################################################################
         
@@ -240,7 +252,7 @@ def solve(tgp,tcp,tgr,tcr):
         for j in range(xreg):
             print ("count reg:",i,j)
             ind = make_id(i,j)
-            count_part(ind, X_part[j], T_part[i], R)
+            count_part(ind, X_part[j], T_part[i], R, coeffs)
 
     print("connect regions")
     for i in range(treg-1):
@@ -250,24 +262,24 @@ def solve(tgp,tcp,tgr,tcr):
             add_residuals_interreg(ind1,ind2, var_num,
                                    product(X_part[j+1][:1],T_part[i]),
                                    product(X_part[j+1][:1],T_part[i]),
-                                   tgp,tgp)
+                                   tgp,tgp, coeffs)
 
             add_residuals_interreg(ind1,ind2, var_num,
                                    product(X_part[j+1][:1],T_part[i],R),
                                    product(X_part[j+1][:1],T_part[i],R),
-                                   tcp,tcp)
+                                   tcp,tcp, coeffs)
 
             ind1 = make_id(i,j)
             ind2 = make_id(i+1,j)
             add_residuals_interreg(ind1,ind2, var_num,
                                    product(X_part[j],T_part[i+1][:1]),
                                    product(X_part[j],T_part[i+1][:1]),
-                                   tgp,tgp)
+                                   tgp,tgp, coeffs)
 
             add_residuals_interreg(ind1,ind2, var_num,
                                    product(X_part[j],T_part[i+1][:1],R),
                                    product(X_part[j],T_part[i+1][:1],R),
-                                   tcp,tcp)
+                                   tcp,tcp, coeffs)
 
     for i in range(treg-1):
         for j in range(xreg-1):
@@ -276,36 +288,40 @@ def solve(tgp,tcp,tgr,tcr):
             add_residuals_interreg(ind1,ind2, var_num,
                                    product(X_part[j+1][:1],T_part[i]),
                                    product(X_part[j+1][:1],T_part[i]),
-                                   tgr,tgr)
+                                   tgr,tgr, coeffs)
 
             add_residuals_interreg(ind1,ind2, var_num,
                                    product(X_part[j+1][:1],T_part[i],R),
                                    product(X_part[j+1][:1],T_part[i],R),
-                                   tcr,tcr)
+                                   tcr,tcr, coeffs)
 
             ind1 = make_id(i,j)
             ind2 = make_id(i+1,j)
             add_residuals_interreg(ind1,ind2, var_num,
                                   product(X_part[j],T_part[i+1][:1]),
                                   product(X_part[j],T_part[i+1][:1]),
-                                  tgr,tgr)
+                                  tgr,tgr, coeffs)
 
             add_residuals_interreg(ind1,ind2, var_num,
                                   product(X_part[j],T_part[i+1][:1],R),
                                   product(X_part[j],T_part[i+1][:1],R),
-                                  tcr,tcr)
+                                  tcr,tcr, coeffs)
 
 
     
 def main():
     global prb_chain
+    global counted_coeffs
     solve(tgp,tcp,tgr,tcr)
     prb = sc.vstack(prb_chain)
     sc.savetxt("prb",prb)
-    x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ,False)
+    x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
     pc = sc.split(x[:-1],max_reg)
     residual = x[-1]
     sc.savetxt("poly_coeff_3d",pc)
+    sc.savetxt("tmp", dx.reshape((-1,1)))
+    counted_coeffs = [] #abs(dx.reshape((-1,1)))
+    print (counted_coeffs)
     cnt_iter = 0
     while True:
         prb_chain = []
@@ -323,10 +339,14 @@ def main():
 
         solve(tgp,tcp,tgr,tcr)
         prb = sc.vstack(prb_chain)
-        sc.savetxt("prb",prb)
-        x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ,False)
+        prb[:,:-1]/=counted_coeffs
+        x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
         pc = sc.split(x[:-1],max_reg)
+        print(abs(x[-1]-residual))
+        if abs(x[-1]-residual)<0.01:
+            break
         residual = x[-1]
+
     
     sc.savetxt("poly_coeff_3d",pc)
 
