@@ -13,7 +13,7 @@ from air_properties import TBZ, air_coefficients
 import ceramic_properties as cp
 
 
-from solver3d import coeffs
+# from solver3d import coeffs
 regsize = 0
 
 def make_id(i,j):
@@ -113,7 +113,9 @@ def main():
                     eq_right = -PO*fgib* CG*  (dtgdx* WG + dtgdt)
                     row_type = "gas2gasp"
                     d = eq_right-eq_left
-                    max_residual = max(d/coeffs[row_type],max_residual)
+                    # max_residual = max(d/coeffs[row_type],max_residual)
+                    max_residual = max(d,max_residual)
+
                     f.write(fmts.format(row_type,t,"",tg,eq_left,d) + " ")
             f.write("\n")
         
@@ -139,7 +141,8 @@ def main():
                             row_type = "cer2cer"
                             
                         d = eq_right-eq_left
-                        max_residual = max(d/coeffs[row_type],max_residual)                
+                        # max_residual = max(d/coeffs[row_type],max_residual)
+                        max_residual = max(d,max_residual)
                         f.write(fmts.format(row_type,"",r,tc,eq_left,d) + " ")
                 f.write("\n")
             f.write(space+"\n")
@@ -170,7 +173,8 @@ def main():
                     eq_right = PO*fgib* CG*  (dtgdx* WG + dtgdt)
                     row_type = "gas2gasr"
                     d = eq_right-eq_left
-                    max_residual = max(d/coeffs[row_type],max_residual)
+                    # max_residual = max(d/coeffs[row_type],max_residual)
+                    max_residual = max(d,max_residual)
                     f.write(fmts.format(row_type,t,"",tg,eq_left,d) + " ")
             f.write("\n")
         
@@ -195,7 +199,8 @@ def main():
                             eq_left = dtcdt
                             row_type = "cer2cer"
                         d = eq_right-eq_left
-                        max_residual = max(d/coeffs[row_type],max_residual)
+                        # max_residual = max(d/coeffs[row_type],max_residual)
+                        max_residual = max(d,max_residual)
                         f.write(fmts.format(row_type,"",r,tc,eq_left,d) + " ")
                 f.write("\n")
             f.write(space+"\n")

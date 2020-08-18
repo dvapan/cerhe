@@ -112,22 +112,22 @@ def difference(x,p):
     r2 = p[1](x)
     return r2 - r1
 
-balance_coeff = 1
-temp_coeff = 1
-cer_coeff = 0.001
+# balance_coeff = 100
+# temp_coeff = 1
+# cer_coeff = 0.001
 # prb_chain = []
 
 
-coeffs = {
-    "polynom"  : temp_coeff,
-    "tcp2tcr"  : temp_coeff,
-    "tcr2tcp"  : temp_coeff,
-    "gas2gasp" : balance_coeff,
-    "gas2gasr" : balance_coeff,
-    "gas2cer"  : cer_coeff,
-    "air2cer"  : cer_coeff,
-    "cer2cer"  : cer_coeff,
-}
+# coeffs = {
+#     "polynom"  : temp_coeff,
+#     "tcp2tcr"  : temp_coeff,
+#     "tcr2tcp"  : temp_coeff,
+#     "gas2gasp" : balance_coeff,
+#     "gas2gasr" : balance_coeff,
+#     "gas2cer"  : cer_coeff,
+#     "air2cer"  : cer_coeff,
+#     "cer2cer"  : cer_coeff,
+# }
 
 def coeffs_default(ind,name=None):
     return coeffs[name]
@@ -314,15 +314,15 @@ def main():
     global counted_coeffs
     make_solution(tgp,tcp,tgr,tcr)
     prb = sc.vstack(prb_chain)
+    prb_base = sc.vstack(prb_chain)
     sc.savetxt("prb",prb)
     x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
     pc = sc.split(x[:-1],max_reg)
     residual = x[-1]
     sc.savetxt("poly_coeff_3d",pc)
     sc.savetxt("tmp", dx.reshape((-1,1)))
-    counted_coeffs = abs(dx.reshape((-1,1)))
-    print (counted_coeffs)
     cnt_iter = 0
+    x_old = x[-1]
     while True:
         prb_chain = []
         cnt_iter += 1
@@ -339,13 +339,11 @@ def main():
 
         make_solution(tgp,tcp,tgr,tcr)
         prb = sc.vstack(prb_chain)
-        prb[:,:-1]/=counted_coeffs*epsilon
         x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
-        counted_coeffs = abs(dx.reshape((-1,1)))
         pc = sc.split(x[:-1],max_reg)
-        print(abs(x[-1]-residual))
-        if abs(x[-1]-residual)<0.01:
+        if abs(x_old-x[-1])<0.01:
             break
+        x_old = x[-1]
         residual = x[-1]
 
     

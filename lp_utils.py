@@ -20,5 +20,5 @@ def slvlprd(prb, lp_dim, xdop):
     print ("START")
     s.primal()
     outx = s.primalVariableSolution['x']
-    return outx, A.dot(outx), s.dualConstraintSolution
+    return outx, A[:,:-1].dot(outx[:-1])-b, s.dualConstraintSolution
 
