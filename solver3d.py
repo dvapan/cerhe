@@ -323,28 +323,28 @@ def main():
     sc.savetxt("tmp", dx.reshape((-1,1)))
     cnt_iter = 0
     x_old = x[-1]
-    while True:
-        prb_chain = []
-        cnt_iter += 1
-        print ("{:#^100}".format("ITERATION {}".format(cnt_iter)))
-        i = 0
-        s,f = 0,tgp.coeff_size
-        tgp.coeffs = pc[i][s:f]
-        s,f = s+tgp.coeff_size,f+tcp.coeff_size
-        tcp.coeffs = pc[i][s:f]
-        s,f = s+tcp.coeff_size,f+tgr.coeff_size
-        tgr.coeffs = pc[i][s:f]
-        s,f = s+tgr.coeff_size,f+tcr.coeff_size
-        tcr.coeffs = pc[i][s:f]
+    # while True:
+    #     prb_chain = []
+    #     cnt_iter += 1
+    #     print ("{:#^100}".format("ITERATION {}".format(cnt_iter)))
+    #     i = 0
+    #     s,f = 0,tgp.coeff_size
+    #     tgp.coeffs = pc[i][s:f]
+    #     s,f = s+tgp.coeff_size,f+tcp.coeff_size
+    #     tcp.coeffs = pc[i][s:f]
+    #     s,f = s+tcp.coeff_size,f+tgr.coeff_size
+    #     tgr.coeffs = pc[i][s:f]
+    #     s,f = s+tgr.coeff_size,f+tcr.coeff_size
+    #     tcr.coeffs = pc[i][s:f]
 
-        make_solution(tgp,tcp,tgr,tcr)
-        prb = sc.vstack(prb_chain)
-        x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
-        pc = sc.split(x[:-1],max_reg)
-        if abs(x_old-x[-1])<0.01:
-            break
-        x_old = x[-1]
-        residual = x[-1]
+    #     make_solution(tgp,tcp,tgr,tcr)
+    #     prb = sc.vstack(prb_chain)
+    #     x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
+    #     pc = sc.split(x[:-1],max_reg)
+    #     if abs(x_old-x[-1])<0.01:
+    #         break
+    #     x_old = x[-1]
+    #     residual = x[-1]
 
     
     sc.savetxt("poly_coeff_3d",pc)
