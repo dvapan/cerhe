@@ -53,7 +53,7 @@ TG = 1000
 
 # Параметры сетки
 
-xreg,treg = 6,6
+xreg,treg = 3,3
 max_reg = xreg*treg
 max_poly_degree = 3
 ppr = 10                        # Точек на регион

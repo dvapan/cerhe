@@ -38,12 +38,12 @@ from air_properties import TBZ, air_coefficients
 
 import ceramic_properties as cp
 
-def cer2cer(x,p):
+def cer2cer(x,p,defval=None):
     tc = p[1](x)
     dtcdt = p[1](x,[0, 1, 0])
     dtcdr = p[1](x,[0,0,1])
     dtcdr2 = p[1](x,[0,0,2])
-    A = cp.a(tc[0])
+    A = cp.a(t_def)
     # print("cer2cer",A)
     return (dtcdt - A*(dtcdr2 + 2/x[2] * dtcdr))
 
@@ -52,7 +52,7 @@ def gas2gasr(x,p):
     dtgdx = p[0](x[:-1], [1, 0])
     dtgdt = p[0](x[:-1], [0, 1])
     tc = p[1](x)
-    ALF,PO, CG, WG= air_coefficients(tg[0])
+    ALF,PO, CG, WG= air_coefficients(t_def)
     # print("air",ALF, PO, CG, WG)
     lbalance = (tg - tc) * ALF* surf_spec
     rbalance = PO*fgib* CG*  (dtgdx* WG + dtgdt)
@@ -63,7 +63,7 @@ def gas2gasp(x,p):
     dtgdx = p[0](x[:-1], [1, 0])
     dtgdt = p[0](x[:-1], [0, 1])
     tc = p[1](x)
-    ALF,PO, CG, WG= gas_coefficients(tg[0])
+    ALF,PO, CG, WG= gas_coefficients(t_def)
     # print("gas",ALF, PO, CG, WG)
     lbalance = (tg - tc) * ALF* surf_spec
     rbalance = PO*fgib* CG*  (dtgdx* WG + dtgdt)
@@ -73,8 +73,8 @@ def gas2cer(x, p):
     tg = p[0](x[:-1])
     tc = p[1](x)
     dtcdr = p[1](x, [0, 0, 1])
-    ALF,_, _, _= gas_coefficients(tg[0])
-    LAM = cp.lam(tc[0])
+    ALF,_, _, _= gas_coefficients(t_def)
+    LAM = cp.lam(t_def)
     # print("gas2cer", ALF, LAM)
     lbalance = (tg - tc) * ALF
     rbalance =  LAM * dtcdr
@@ -84,8 +84,8 @@ def air2cer(x, p):
     tg = p[0](x[:-1])
     tc = p[1](x)
     dtcdr = p[1](x, [0, 0, 1])
-    ALF,_, _, _= air_coefficients(tg[0])
-    LAM = cp.lam(tc[0])
+    ALF,_, _, _= air_coefficients(t_def)
+    LAM = cp.lam(t_def)
     # print("air2cer", ALF, LAM)
 
     lbalance = (tg - tc) * ALF
@@ -112,22 +112,22 @@ def difference(x,p):
     r2 = p[1](x)
     return r2 - r1
 
-# balance_coeff = 100
-# temp_coeff = 1
-# cer_coeff = 0.001
-# prb_chain = []
+balance_coeff = 100
+temp_coeff = 1
+cer_coeff = 0.001
+prb_chain = []
 
 
-# coeffs = {
-#     "polynom"  : temp_coeff,
-#     "tcp2tcr"  : temp_coeff,
-#     "tcr2tcp"  : temp_coeff,
-#     "gas2gasp" : balance_coeff,
-#     "gas2gasr" : balance_coeff,
-#     "gas2cer"  : cer_coeff,
-#     "air2cer"  : cer_coeff,
-#     "cer2cer"  : cer_coeff,
-# }
+coeffs = {
+    "polynom"  : temp_coeff,
+    "tcp2tcr"  : temp_coeff,
+    "tcr2tcp"  : temp_coeff,
+    "gas2gasp" : balance_coeff,
+    "gas2gasr" : balance_coeff,
+    "gas2cer"  : cer_coeff,
+    "air2cer"  : cer_coeff,
+    "cer2cer"  : cer_coeff,
+}
 
 def coeffs_default(ind,name=None):
     return coeffs[name]
@@ -178,7 +178,7 @@ def add_residuals(ind, var_num, domain, diff_eq, p, val=0, coeffs=coeffs_default
         else:
             r = diff_eq(x,p)
 
-        # r /= coeffs(ind,diff_eq.__name__)
+        r /= coeffs(ind,diff_eq.__name__)
         add_residual(ind, var_num,r[1:],val)
 
 
@@ -186,8 +186,8 @@ def add_residuals_interreg(ind1,ind2, var_num, domain1, domain2, diff_eq1, diff_
     for x1,x2 in zip(domain1,domain2):
         r1 = diff_eq1(x1)
         r2 = diff_eq2(x2)
-        # r1 /= coeffs(ind1,diff_eq1.__name__)
-        # r2 /= coeffs(ind2,diff_eq2.__name__)
+        r1 /= coeffs(ind1,diff_eq1.__name__)
+        r2 /= coeffs(ind2,diff_eq2.__name__)
         add_residual_interreg(ind1,ind2, var_num,r1[1:],r2[1:])
 
 
