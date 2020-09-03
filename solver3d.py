@@ -255,31 +255,31 @@ def make_solution(tgp,tcp,tgr,tcr, coeffs=coeffs_default):
             count_part(ind, X_part[j], T_part[i], R, coeffs)
 
     print("connect regions")
-    for i in range(treg-1):
-        for j in range(xreg-1):
+    for i in range(1,treg):
+        for j in range(1,xreg):
             ind1 = make_id(i,j)
-            ind2 = make_id(i,j+1)
+            ind2 = make_id(i,j-1)
             add_residuals_interreg(ind1,ind2, var_num,
-                                   product(X_part[j+1][:1],T_part[i]),
-                                   product(X_part[j+1][:1],T_part[i]),
+                                   product(X_part[j-1][-1:],T_part[i]),
+                                   product(X_part[j-1][-1:],T_part[i]),
                                    tgp,tgp, coeffs)
 
             add_residuals_interreg(ind1,ind2, var_num,
-                                   product(X_part[j+1][:1],T_part[i],R),
-                                   product(X_part[j+1][:1],T_part[i],R),
+                                   product(X_part[j-1][-1:],T_part[i],R),
+                                   product(X_part[j-1][-1:],T_part[i],R),
                                    tcp,tcp, coeffs)
 
             ind1 = make_id(i,j)
-            ind2 = make_id(i+1,j)
+            ind2 = make_id(i-1,j)
             add_residuals_interreg(ind1,ind2, var_num,
-                                   product(X_part[j],T_part[i+1][:1]),
-                                   product(X_part[j],T_part[i+1][:1]),
-                                   tgp,tgp, coeffs)
+                                   product(X_part[j],T_part[i-1][-1:]),
+                                   product(X_part[j],T_part[i-1][-1:]),
+                                   tgp,tgp,coeffs)
 
             add_residuals_interreg(ind1,ind2, var_num,
-                                   product(X_part[j],T_part[i+1][:1],R),
-                                   product(X_part[j],T_part[i+1][:1],R),
-                                   tcp,tcp, coeffs)
+                                   product(X_part[j],T_part[i-1][-1:],R),
+                                   product(X_part[j],T_part[i-1][-1:],R),
+                                   tcp,tcp,coeffs)
 
     for i in range(treg-1):
         for j in range(xreg-1):
