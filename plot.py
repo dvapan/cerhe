@@ -18,7 +18,6 @@ def peval(poly,x):
     j = int(x[0]/px)
     i = int(x[1]/pt)
     ind = make_id(i,j)
-    print ("peval:",x,i,j,ind)
     val = poly[ind](x)[0]
     return val
 
