@@ -123,3 +123,10 @@ otkl
 tbl*
 prb
 tmp
+
+*.aux
+*.bbl
+*.blg
+*.idx
+*.out
+*.pdf
