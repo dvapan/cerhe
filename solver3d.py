@@ -112,7 +112,7 @@ def difference(x,p):
     r2 = p[1](x)
     return r2 - r1
 
-balance_coeff = 100
+balance_coeff = 10
 temp_coeff = 1
 cer_coeff = 0.001
 prb_chain = []

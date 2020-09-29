@@ -65,36 +65,110 @@ for i in range(max_reg):
 
 X = sc.arange(0, length, 0.01)
 T = sc.arange(0, time, 0.1)
-R = sc.arange(0.01*rball, rball, 0.1)
+R = sc.linspace(0.01*rball, rball, 10)
+
 R = R[::-1]
-# # Time moment
-# x = X.reshape((-1,1))
-# t = np.full_like(X,T[-1]).reshape((-1,1))
-# r = np.full_like(X,R[-1]).reshape((-1,1))
-# xx = np.hstack([x,t])
+# Time moment
+x = X.reshape((-1,1))
+t = np.full_like(X,T[-1]).reshape((-1,1))
+r = np.full_like(X,R[0]).reshape((-1,1))
+r1 = np.full_like(X,R[-1]).reshape((-1,1))
 
-# val = [peval(tgp,x) for x in xx]
+xx = np.hstack([x,t])
 
-# plt.plot(X,val)
+valgp = np.array([peval(tgp,x) for x in xx])
+plt1= plt.subplot(321)
+plt1.plot(X,valgp)
 
-# xx = np.hstack([x,t,r])
-# val = [peval(tcp,x) for x in xx]
+valgr = np.array([peval(tgr,x) for x in xx])
+plt2 = plt.subplot(322)
+plt2.plot(X,valgr)
 
-# plt.plot(X,val)
+
+xx = np.hstack([x,t,r])
+valcp = [peval(tcr,x) for x in xx]
+plt1.plot(X,valcp)
+valcr = [peval(tcp,x) for x in xx]
+plt2.plot(X,valcr)
+
+
+xx = np.hstack([x,t,r1])
+valcp = [peval(tcr,x) for x in xx]
+plt1.plot(X,valcp)
+valcr = [peval(tcp,x) for x in xx]
+plt2.plot(X,valcr)
+
+
+plt3 = plt.subplot(312)
+# plt.plot(t,val)
 
 t = T.reshape((-1,1))
 x = np.full_like(T,X[-1]).reshape((-1,1))
 r = np.full_like(T,R[0]).reshape((-1,1))
+r1 = np.full_like(T,R[-1]).reshape((-1,1))
 xx = np.hstack([x,t])
 
-val = [peval(tgp,x) for x in xx]
+tvalgp = np.array([peval(tgp,x) for x in xx])
 
-plt.plot(t,val)
+tvalgr = [peval(tgr,x) for x in xx]
+
+tt = np.vstack([t,t[-1]+t])
+vv = np.hstack([tvalgp,tvalgr])
+plt3.plot(tt,vv)
 
 xx = np.hstack([x,t,r])
-val = [peval(tcp,x) for x in xx]
 
-plt.plot(t,val)
+tvalcp = [peval(tcp,x) for x in xx]
+tvalcr = [peval(tcr,x) for x in xx]
+
+tt = np.vstack([t,t[-1]+t])
+vv = np.hstack([tvalcp,tvalcr])
+
+plt3.plot(tt,vv)
+
+xx = np.hstack([x,t,r1])
+
+tvalcp = [peval(tcp,x) for x in xx]
+tvalcr = [peval(tcr,x) for x in xx]
+
+tt = np.vstack([t,t[-1]+t])
+vv = np.hstack([tvalcp,tvalcr])
+
+plt3.plot(tt,vv)
+
+
+
+R = R[::-1]
+# Time moment
+x = X.reshape((-1,1))
+t = np.full_like(X,T[len(T)//2]).reshape((-1,1))
+r = np.full_like(X,R[0]).reshape((-1,1))
+r1 = np.full_like(X,R[-1]).reshape((-1,1))
+
+xx = np.hstack([x,t])
+
+valgp = np.array([peval(tgp,x) for x in xx])
+plt4= plt.subplot(325)
+plt4.plot(X,valgp)
+
+valgr = np.array([peval(tgr,x) for x in xx])
+plt5 = plt.subplot(326)
+plt5.plot(X,valgr)
+
+
+xx = np.hstack([x,t,r])
+valcp = [peval(tcr,x) for x in xx]
+plt4.plot(X,valcp)
+valcr = [peval(tcp,x) for x in xx]
+plt5.plot(X,valcr)
+
+
+xx = np.hstack([x,t,r1])
+valcp = [peval(tcr,x) for x in xx]
+plt4.plot(X,valcp)
+valcr = [peval(tcp,x) for x in xx]
+plt5.plot(X,valcr)
+
 
 
 plt.show()

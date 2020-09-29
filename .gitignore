@@ -124,3 +124,10 @@ tbl*
 prb
 tmp
 *.c
+
+*.aux
+*.bbl
+*.blg
+*.idx
+*.out
+*.pdf
