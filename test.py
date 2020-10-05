@@ -65,6 +65,28 @@ lb= (tgr - tcr) * ALF* surf_spec
 rb= PO*fgib* CG*  (dtgrdx* WG + dtgrdt)
 monos_gasr = lb+rb
 
+# Gas to ceramic transfer
+tt,xx,rr = np.meshgrid(T,X,R[-1])
+in_pts = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
+
+tcp = mvmonoss(in_pts,powers(3,3),1,cff_cnt)
+tgp = mvmonoss(in_pts[:,:-1],powers(3,2),0,cff_cnt)
+dtcpdr = mvmonoss(in_pts,powers(3,3),1,cff_cnt,[0,0,1]) 
+ALF,_, _, _= gas_coefficients(t_def)
+LAM = cp.lam(t_def)
+lbalance = (tgp - tcp) * ALF
+rbalance =  LAM * dtcpdr
+monos_g2cp = lbalance - rbalance
+
+tcr = mvmonoss(in_pts,powers(3,3),3,cff_cnt)
+tgr = mvmonoss(in_pts[:,:-1],powers(3,2),2,cff_cnt)
+dtcrdr = mvmonoss(in_pts,powers(3,3),3,cff_cnt,[0,0,1]) 
+ALF,_, _, _= gas_coefficients(t_def)
+LAM = cp.lam(t_def)
+lbalance = (tgr - tcr) * ALF
+rbalance =  LAM * dtcrdr
+monos_g2cr = lbalance - rbalance
+
 #Boundary points for start gas supply from left side of Heat Exchanger
 tt,xx,rr = np.meshgrid(T,X[0],R[-1])
 sb_pts_x0 = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
@@ -89,13 +111,15 @@ tcr = mvmonoss(sb_pts_t0,powers(3,3),3,cff_cnt)
 revtc2 = tcp - tcr
 
 prb_chain = [monos_gasp, monos_gasr, monos_cerp, monos_cerr,
+             monos_g2cp, monos_g2cr,
                 sbtgp, sbtgr, revtc1,revtc2]
-rhs_vals = [0,0,0,0,TGZ,TBZ,0,0]
+rhs_vals = [0,0,0,0,0,0,TGZ,TBZ,0,0]
 A = sc.vstack(prb_chain)
 
 rhs = np.hstack(
         list(map(lambda x,y: np.full(len(x),y),prb_chain,rhs_vals))
 )
+
 
 xdop = 1
 s = CyClpSimplex()
@@ -117,4 +141,5 @@ s.objective = x[lp_dim-1]
 print ("START")
 s.primal()
 outx = s.primalVariableSolution['x']
-print (outx)
+
+np.savetxt("poly_coeff_3d",outx)
