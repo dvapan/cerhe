@@ -2,8 +2,10 @@ import numpy as np
 import scipy as sc
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
+import matplotlib.pyplot as plt
 
 from poly import mvmonos, powers
+
 
 from constants import *
 from gas_properties import TGZ, gas_coefficients
@@ -17,7 +19,6 @@ def mvmonoss(x,powers,shift_ind,cff_cnt,diff=None):
     lzeros = np.zeros((len(x),lzeros))
     rzeros = np.zeros((len(x),rzeros))
     return np.hstack([lzeros,monoms,rzeros])
-
     
 
 t_def = 1000
@@ -142,4 +143,9 @@ print ("START")
 s.primal()
 outx = s.primalVariableSolution['x']
 
-np.savetxt("poly_coeff_3d",outx)
+np.savetxt("test_cff",outx[:-1])
+
+
+#gas
+# tt,xx,rr = np.meshgrid(T,X,R[-1])
+# in_pts_gs = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
