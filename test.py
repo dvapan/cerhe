@@ -44,7 +44,7 @@ a = cp.a(t_def)
 monos_cerr = dtcrdt - a*(dtcrdr2 + 2/rr.flatten()[:,np.newaxis] * dtcrdr)
 
 #Inner points for gas
-tt,xx,rr = np.meshgrid(T,X,R[-1])
+tt,xx,rr = np.meshgrid(T,X,R[0])
 in_pts_gs = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
 
 #Gas to gas transfer
@@ -52,22 +52,22 @@ tgp = mvmonoss(in_pts_gs[:,:-1],powers(3,2),0,cff_cnt)
 dtgpdt = mvmonoss(in_pts_gs[:,:-1],powers(3,2),0,cff_cnt,[1,0])
 dtgpdx = mvmonoss(in_pts_gs[:,:-1],powers(3,2),0,cff_cnt,[0,1])
 tcp = mvmonoss(in_pts_gs,powers(3,3),1,cff_cnt)
-ALF,PO, CG, WG= air_coefficients(t_def)
+ALF,PO, CG, WG= gas_coefficients(t_def)
 lb= (tgp - tcp) * ALF* surf_spec
 rb= PO*fgib* CG*  (dtgpdx* WG + dtgpdt)
-monos_gasp = lb-rb
+monos_gasp = lb+rb
 
 tgr = mvmonoss(in_pts_gs[:,:-1],powers(3,2),2,cff_cnt)
 dtgrdt = mvmonoss(in_pts_gs[:,:-1],powers(3,2),2,cff_cnt,[1,0])
 dtgrdx = mvmonoss(in_pts_gs[:,:-1],powers(3,2),2,cff_cnt,[0,1])
 tcr = mvmonoss(in_pts_gs,powers(3,3),3,cff_cnt)
-ALF,PO, CG, WG= gas_coefficients(t_def)
+ALF,PO, CG, WG= air_coefficients(t_def)
 lb= (tgr - tcr) * ALF* surf_spec
 rb= PO*fgib* CG*  (dtgrdx* WG + dtgrdt)
-monos_gasr = lb+rb
+monos_gasr = lb-rb
 
 # Gas to ceramic transfer
-tt,xx,rr = np.meshgrid(T,X,R[-1])
+tt,xx,rr = np.meshgrid(T,X,R[0])
 in_pts = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
 
 tcp = mvmonoss(in_pts,powers(3,3),1,cff_cnt)
@@ -89,12 +89,12 @@ rbalance =  LAM * dtcrdr
 monos_g2cr = lbalance - rbalance
 
 #Boundary points for start gas supply from left side of Heat Exchanger
-tt,xx,rr = np.meshgrid(T,X[0],R[-1])
+tt,xx,rr = np.meshgrid(T,X[0],R[0])
 sb_pts_x0 = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
 sbtgp = mvmonoss(sb_pts_x0[:,:-1],powers(3,2),0,cff_cnt)
 
 #Boundary points for start air supply from right side of Heat Exchanger
-tt,xx,rr = np.meshgrid(T,X[-1],R[-1])
+tt,xx,rr = np.meshgrid(T,X[-1],R[0])
 sb_pts_x1 = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
 sbtgr = mvmonoss(sb_pts_x1[:,:-1],powers(3,2),2,cff_cnt)
 
