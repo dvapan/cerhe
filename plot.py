@@ -24,7 +24,7 @@ def peval(poly,x):
 vpeval = sc.vectorize(peval)
 
 name = sys.argv[1]
-xreg,treg = map(int,sys.argv[2:])
+xreg, treg = map(int,sys.argv[2:])
 max_reg = xreg*treg
 
 px = length/xreg
@@ -136,8 +136,6 @@ vv = np.hstack([tvalcp,tvalcr])
 
 plt3.plot(tt,vv)
 
-
-
 R = R[::-1]
 # Time moment
 x = X.reshape((-1,1))
@@ -155,20 +153,16 @@ valgr = np.array([peval(tgr,x) for x in xx])
 plt5 = plt.subplot(326)
 plt5.plot(X,valgr)
 
-
 xx = np.hstack([x,t,r])
 valcp = [peval(tcr,x) for x in xx]
 plt4.plot(X,valcp)
 valcr = [peval(tcp,x) for x in xx]
 plt5.plot(X,valcr)
 
-
 xx = np.hstack([x,t,r1])
 valcp = [peval(tcr,x) for x in xx]
 plt4.plot(X,valcp)
 valcr = [peval(tcp,x) for x in xx]
 plt5.plot(X,valcr)
-
-
 
 plt.show()

@@ -315,7 +315,6 @@ def main():
     make_solution(tgp,tcp,tgr,tcr)
     prb = sc.vstack(prb_chain)
     prb_base = sc.vstack(prb_chain)
-    sc.savetxt("prb",prb)
     x,dx,dz = lut.slvlprd(prb, var_num*max_reg+1, TGZ)
     pc = sc.split(x[:-1],max_reg)
     residual = x[-1]

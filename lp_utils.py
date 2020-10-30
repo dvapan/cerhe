@@ -17,6 +17,8 @@ def slvlprd(prb, lp_dim, xdop):
     s += x[lp_dim-1] >= 0
     s += x[lp_dim-1] <= xdop
     s.objective = x[lp_dim-1]
+    print ("task size: {} {}".format(*A.shape))
+    sc.savetxt("tttt",A.shape)
     print ("START")
     s.primal()
     outx = s.primalVariableSolution['x']
