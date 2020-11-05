@@ -157,7 +157,6 @@ cff = np.hstack(cff).reshape(-1,1)
 
 print (rhs)
 
-
 xdop = 10
 s = CyClpSimplex()
 lp_dim = A.shape[1]+1
@@ -171,10 +170,6 @@ A2 = np.matrix(A2)
 
 b1 = CyLPArray(rhs)
 b2 = CyLPArray(-rhs)
-
-np.savetxt("A",np.vstack([A1,A2]))
-np.savetxt("b",np.hstack([b1,b2]))
-
 
 s += A1*x >= b1
 s += A2*x >= b2

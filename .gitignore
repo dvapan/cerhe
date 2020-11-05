@@ -107,6 +107,7 @@ venv.bak/
 out*
 *.dat
 
+test_cff
 test1
 testout
 qqq
