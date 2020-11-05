@@ -33,27 +33,42 @@ R = R[::-1]
 
 
 
-# # ceramic
-# tt,xx,rr = np.meshgrid(T,X,R[-1])
-# in_pts_cr = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
-# pp = mvmonos(in_pts_cr,powers(3,3))
 #gas
 tt,xx = np.meshgrid(T,X)
 in_pts_cr = np.vstack([tt.flatten(),xx.flatten()]).T
 pp = mvmonos(in_pts_cr,powers(3,2))
 
-
 tt,xx = np.meshgrid(T,X)
-u = pp.dot(tgc_cf)
+u = pp.dot(tgh_cf)
 uu = u.reshape((len(T), len(X)))
 
 print(uu[0,:])
 plt.plot(tt[0,:],uu[-1,:])
+# ceramic
+
+tt,xx,rr = np.meshgrid(T,X,R[0])
+in_pts_cr = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
+pp = mvmonos(in_pts_cr,powers(3,3))
+u = pp.dot(tch_cf)
+uu = u.reshape((len(T), len(X)))
+
+plt.plot(tt[0,:],uu[-1,:])
+
+
+tt,xx,rr = np.meshgrid(T,X,R[-1])
+in_pts_cr = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
+pp = mvmonos(in_pts_cr,powers(3,3))
+u = pp.dot(tch_cf)
+uu = u.reshape((len(T), len(X)))
+
+plt.plot(tt[0,:],uu[-1,:])
+
+
 # fig, ax = plt.subplots()
 # p = ax.contourf(tt, xx, uu, np.linspace(700, 1900, 100), cmap='inferno')
 
 # fig.colorbar(p, ax=ax)
 # fig.tight_layout()
-# plt.xlim(0, 300)
-# plt.ylim(760, 800)
+plt.xlim(0, 300)
+plt.ylim(760, 800)
 plt.show()
