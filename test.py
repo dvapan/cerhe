@@ -6,7 +6,6 @@ import matplotlib.pyplot as plt
 
 from poly import mvmonos, powers
 
-
 from constants import *
 from gas_properties import TGZ, gas_coefficients
 from air_properties import TBZ, air_coefficients
@@ -24,79 +23,78 @@ def mvmonoss(x,powers,shift_ind,cff_cnt,diff=None):
 t_def = 1000
 cff_cnt = [10,20,10,20]
 
-
-def ceramic(T,X,R):
+def ceramic(T, X, R):
     #Inner points for ceramic
-    tt,xx,rr = np.meshgrid(T,X,R)
-    in_pts_cr = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
+    tt, xx, rr = np.meshgrid(T, X, R)
+    in_pts_cr = np.vstack([tt.flatten(), xx.flatten(), rr.flatten()]).T
 
     #Ceramic to ceramic heat transfer
-    tch = mvmonoss(in_pts_cr,powers(3,3),1,cff_cnt)
-    dtchdt = mvmonoss(in_pts_cr,powers(3,3),1,cff_cnt,[1,0,0])
-    dtchdr = mvmonoss(in_pts_cr,powers(3,3),1,cff_cnt,[0,0,1]) 
-    dtchdr2 = mvmonoss(in_pts_cr,powers(3,3),1,cff_cnt,[0,0,2])
+    tch = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt)
+    dtchdt = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt, [1, 0, 0])
+    dtchdr = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt, [0, 0, 1])
+    dtchdr2 = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt, [0, 0, 2])
     a = cp.a(t_def)
-    monos_cerp = dtchdt - a*(dtchdr2 + 2/rr.flatten()[:,np.newaxis] * dtchdr)
+    monos_cerp = dtchdt - a*(dtchdr2 + 2/rr.flatten()[:, np.newaxis] * dtchdr)
 
-    tcc = mvmonoss(in_pts_cr,powers(3,3),3,cff_cnt)
-    dtccdt = mvmonoss(in_pts_cr,powers(3,3),3,cff_cnt,[1,0,0])
-    dtccdr = mvmonoss(in_pts_cr,powers(3,3),3,cff_cnt,[0,0,1]) 
-    dtccdr2 = mvmonoss(in_pts_cr,powers(3,3),3,cff_cnt,[0,0,2])
+    tcc = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt)
+    dtccdt = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [1, 0, 0])
+    dtccdr = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [0, 0, 1])
+    dtccdr2 = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [0, 0, 2])
     a = cp.a(t_def)
-    monos_cerr = dtccdt - a*(dtccdr2 + 2/rr.flatten()[:,np.newaxis] * dtccdr)
+    monos_cerr = dtccdt - a*(dtccdr2 + 2/rr.flatten()[:, np.newaxis] * dtccdr)
 
-    monos = np.vstack([monos_cerp, monos_cerr])
-    rhs = np.full(len(monos), 0)
-    cff = np.full(len(monos), 0.001)
-    return monos,rhs,cff
+    monos = np.vstack([monos_cerp,  monos_cerr])
+    rhs = np.full(len(monos),  0)
+    cff = np.full(len(monos),  0.001)
+    return monos, rhs, cff
 
-def gas_air(T,X,R):
+def gas_air(T, X, R):
     #Inner points for gas and air
-    tt,xx,rr = np.meshgrid(T,X,R[0])
-    in_pts_gs = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
+    tt, xx, rr = np.meshgrid(T, X, R[0])
+    in_pts_gs = np.vstack([tt.flatten(), xx.flatten(), rr.flatten()]).T
 
     #Gas to gas transfer
-    tgh = mvmonoss(in_pts_gs[:,:-1],powers(3,2),0,cff_cnt)
-    dtghdt = mvmonoss(in_pts_gs[:,:-1],powers(3,2),0,cff_cnt,[1,0])
-    dtghdx = mvmonoss(in_pts_gs[:,:-1],powers(3,2),0,cff_cnt,[0,1])
-    tch = mvmonoss(in_pts_gs,powers(3,3),1,cff_cnt)
-    ALF,PO, CG, WG= gas_coefficients(t_def)
+    tgh = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 0, cff_cnt)
+    dtghdt = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 0, cff_cnt, [1, 0])
+    dtghdx = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 0, cff_cnt, [0, 1])
+    tch = mvmonoss(in_pts_gs, powers(3, 3), 1, cff_cnt)
+    ALF, PO, CG, WG= gas_coefficients(t_def)
     lb= (tgh - tch) * ALF* surf_spec
     rb= PO*fgib* CG*  (dtghdx* WG + dtghdt)
     monos_gash = lb+rb
 
-    tgc = mvmonoss(in_pts_gs[:,:-1],powers(3,2),2,cff_cnt)
-    dtgcdt = mvmonoss(in_pts_gs[:,:-1],powers(3,2),2,cff_cnt,[1,0])
-    dtgcdx = mvmonoss(in_pts_gs[:,:-1],powers(3,2),2,cff_cnt,[0,1])
-    tcc = mvmonoss(in_pts_gs,powers(3,3),3,cff_cnt)
-    ALF,PO, CG, WG= air_coefficients(t_def)
+    tgc = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 2, cff_cnt)
+    dtgcdt = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 2, cff_cnt, [1, 0])
+    dtgcdx = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 2, cff_cnt, [0, 1])
+    tcc = mvmonoss(in_pts_gs, powers(3, 3), 3, cff_cnt)
+    ALF, PO, CG, WG= air_coefficients(t_def)
     lb= (tgc - tcc) * ALF* surf_spec
-    rb= PO*fgib* CG*  (dtgcdx* WG + dtgcdt)
+    rb= PO*fgib* CG* (dtgcdx* WG + dtgcdt)
     monos_gasc = lb-rb
 
-    monos = np.vstack([monos_gash,monos_gasc])
+    monos = np.vstack([monos_gash, monos_gasc])
     rhs = np.full(len(monos), 0)
     cff = np.full(len(monos), 10)
-    return monos,rhs,cff
+    return monos, rhs, cff
 
-def ceramic_surface(T,X,R):
+def ceramic_surface(T, X, R):
     # Ceramic surface
-    tt,xx,rr = np.meshgrid(T,X,R[0])
-    in_pts = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
+    tt, xx, rr = np.meshgrid(T, X, R[0])
+    in_pts = np.vstack([tt.flatten(), xx.flatten(), rr.flatten()]).T
 
-    tch = mvmonoss(in_pts,powers(3,3),1,cff_cnt)
-    tgh = mvmonoss(in_pts[:,:-1],powers(3,2),0,cff_cnt)
-    dtchdr = mvmonoss(in_pts,powers(3,3),1,cff_cnt,[0,0,1]) 
-    ALF,_, _, _= gas_coefficients(t_def)
+    tch = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt)
+    tgh = mvmonoss(in_pts[:, :-1], powers(3, 2), 0, cff_cnt)
+    dtchdr = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt, [0, 0, 1])
+    ALF, _,  _,  _= gas_coefficients(t_def)
     LAM = cp.lam(t_def)
     lbalance = (tgh - tch) * ALF
     rbalance =  LAM * dtchdr
     monos_g2cp = lbalance - rbalance
 
-    tcc = mvmonoss(in_pts,powers(3,3),3,cff_cnt)
-    tgc = mvmonoss(in_pts[:,:-1],powers(3,2),2,cff_cnt)
-    dtccdr = mvmonoss(in_pts,powers(3,3),3,cff_cnt,[0,0,1]) 
-    ALF,_, _, _= air_coefficients(t_def)
+    tcc = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt)
+    tgc = mvmonoss(in_pts[:, :-1], powers(3, 2), 2, cff_cnt)
+    dtccdr = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt, [0, 0, 1])
+    ALF, _, _, _= air_coefficients(t_def)
     LAM = cp.lam(t_def)
     lbalance = (tgc - tcc) * ALF
     rbalance =  LAM * dtccdr
@@ -105,19 +103,19 @@ def ceramic_surface(T,X,R):
     monos =  np.vstack([monos_g2cp, monos_g2cr])
     rhs = np.full(len(monos), 0)
     cff = np.full(len(monos), 0.001)
-    return monos,rhs,cff
-
-#Boundary points for start gas supply from left side of Heat Exchanger
-def boundary(T,X,R,val,ind):
-    tt,xx,rr = np.meshgrid(T,X,R)
-    sb_pts_x0 = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
-    monos = mvmonoss(sb_pts_x0[:,:-1],powers(3,2),ind,cff_cnt)
-    rhs = np.full(len(monos), val)
-    cff = np.full(len(monos), 1)
     return monos, rhs, cff
 
+#Boundary points for start gas supply from left side of Heat Exchanger
+def boundary(T, X, R, val, ind):
+    tt, xx, rr = np.meshgrid(T, X, R)
+    sb_pts_x0 = np.vstack([tt.flatten(), xx.flatten(), rr.flatten()]).T
+    monos = mvmonoss(sb_pts_x0[:, :-1], powers(3, 2), ind, cff_cnt)
+    rhs = np.full(len(monos), val)
+    cff = np.full(len(monos), 1)
+    return monos,  rhs,  cff
+
 #Boundary points for ceramic rever
-def boundary_revert(T_start,T_end,X,R):
+def boundary_revert(T_start, T_end, X, R):
     tt,xx,rr = np.meshgrid(T_start,X,R)
     sb_pts_t0 = np.vstack([tt.flatten(),xx.flatten(),rr.flatten()]).T
     tt,xx,rr = np.meshgrid(T_end,X,R)
