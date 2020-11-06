@@ -38,7 +38,7 @@ def ceramic(T, X, R):
 
     tcc = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt)
     dtccdt = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [1, 0, 0])
-    dtccdr = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [0, 0, 1])
+    dtccdr = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [0, 0, 1]) 
     dtccdr2 = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [0, 0, 2])
     a = cp.a(t_def)
     monos_cerr = dtccdt - a*(dtccdr2 + 2/rr.flatten()[:, np.newaxis] * dtccdr)
@@ -84,7 +84,7 @@ def ceramic_surface(T, X, R):
 
     tch = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt)
     tgh = mvmonoss(in_pts[:, :-1], powers(3, 2), 0, cff_cnt)
-    dtchdr = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt, [0, 0, 1])
+    dtchdr = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt, [0, 0, 1]) 
     ALF, _,  _,  _= gas_coefficients(t_def)
     LAM = cp.lam(t_def)
     lbalance = (tgh - tch) * ALF
@@ -93,7 +93,7 @@ def ceramic_surface(T, X, R):
 
     tcc = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt)
     tgc = mvmonoss(in_pts[:, :-1], powers(3, 2), 2, cff_cnt)
-    dtccdr = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt, [0, 0, 1])
+    dtccdr = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt, [0, 0, 1]) 
     ALF, _, _, _= air_coefficients(t_def)
     LAM = cp.lam(t_def)
     lbalance = (tgc - tcc) * ALF
