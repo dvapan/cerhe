@@ -10,13 +10,15 @@ from gas_properties import TGZ, gas_coefficients
 from air_properties import TBZ, air_coefficients
 import ceramic_properties as cp
 
+
 def mvmonoss(x, powers, shift_ind, cff_cnt, diff=None):
     lzeros = sum((cff_cnt[i] for i in range(shift_ind)))
-    rzeros = sum((cff_cnt[i] for i in range(shift_ind+1, len(cff_cnt))))
+    rzeros = sum((cff_cnt[i] for i in range(shift_ind + 1, len(cff_cnt))))
     monos = mvmonos(x, powers, diff)
     lzeros = np.zeros((len(x), lzeros))
     rzeros = np.zeros((len(x), rzeros))
     return np.hstack([lzeros, monos, rzeros])
+
 
 def nodes(*grid_base):
     """
@@ -30,30 +32,30 @@ def nodes(*grid_base):
 t_def = 1000
 cff_cnt = [10, 20, 10, 20]
 
+
 def ceramic(*grid_base):
     """ Ceramic to ceramic heat transfer
     """
-    #Inner points for ceramic
     in_pts_cr = nodes(*grid_base)
 
-    #Ceramic to ceramic heat transfer
     dtchdt = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt, [1, 0, 0])
     dtchdr = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt, [0, 0, 1])
     dtchdr2 = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt, [0, 0, 2])
-    radius = in_pts_cr[:,-1].reshape(-1,1)
+    radius = in_pts_cr[:, -1].reshape(-1, 1)
     a = cp.a(t_def)
-    monos_cerp = dtchdt - a*(dtchdr2 + 2/radius * dtchdr)
+    monos_cerh = dtchdt - a * (dtchdr2 + 2 / radius * dtchdr)
 
     dtccdt = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [1, 0, 0])
     dtccdr = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [0, 0, 1])
     dtccdr2 = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [0, 0, 2])
     a = cp.a(t_def)
-    monos_cerr = dtccdt - a*(dtccdr2 + 2/radius * dtccdr)
+    monos_cerc = dtccdt - a * (dtccdr2 + 2 / radius * dtccdr)
 
-    monos = np.vstack([monos_cerp, monos_cerr])
+    monos = np.vstack([monos_cerh, monos_cerc])
     rhs = np.full(len(monos), 0)
     cff = np.full(len(monos), 0.001)
     return monos, rhs, cff
+
 
 def gas_air(*grid_base):
     """
@@ -65,23 +67,24 @@ def gas_air(*grid_base):
     dtghdx = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 0, cff_cnt, [0, 1])
     tch = mvmonoss(in_pts_gs, powers(3, 3), 1, cff_cnt)
     ALF, PO, CG, WG = gas_coefficients(t_def)
-    lb = (tgh - tch) * ALF* surf_spec
-    rb = PO*fgib* CG*  (dtghdx* WG + dtghdt)
-    monos_gash = lb+rb
+    lb = (tgh - tch) * ALF * surf_spec
+    rb = PO * fgib * CG * (dtghdx * WG + dtghdt)
+    monos_gash = lb + rb
 
     tgc = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 2, cff_cnt)
     dtgcdt = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 2, cff_cnt, [1, 0])
     dtgcdx = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 2, cff_cnt, [0, 1])
     tcc = mvmonoss(in_pts_gs, powers(3, 3), 3, cff_cnt)
-    ALF, PO, CG, WG= air_coefficients(t_def)
-    lb = (tgc - tcc) * ALF* surf_spec
-    rb = PO*fgib* CG* (dtgcdx* WG + dtgcdt)
-    monos_gasc = lb-rb
+    ALF, PO, CG, WG = air_coefficients(t_def)
+    lb = (tgc - tcc) * ALF * surf_spec
+    rb = PO * fgib * CG * (dtgcdx * WG + dtgcdt)
+    monos_gasc = lb - rb
 
     monos = np.vstack([monos_gash, monos_gasc])
     rhs = np.full(len(monos), 0)
     cff = np.full(len(monos), 10)
     return monos, rhs, cff
+
 
 def ceramic_surface(*grid_base):
     """
@@ -91,26 +94,27 @@ def ceramic_surface(*grid_base):
 
     tch = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt)
     tgh = mvmonoss(in_pts[:, :-1], powers(3, 2), 0, cff_cnt)
-    dtchdr = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt, [0, 0, 1]) 
+    dtchdr = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt, [0, 0, 1])
     ALF, _, _, _ = gas_coefficients(t_def)
     LAM = cp.lam(t_def)
     lbalance = (tgh - tch) * ALF
     rbalance = LAM * dtchdr
-    monos_g2cp = lbalance - rbalance
+    monos_surfh = lbalance - rbalance
 
     tcc = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt)
     tgc = mvmonoss(in_pts[:, :-1], powers(3, 2), 2, cff_cnt)
-    dtccdr = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt, [0, 0, 1]) 
+    dtccdr = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt, [0, 0, 1])
     ALF, _, _, _ = air_coefficients(t_def)
     LAM = cp.lam(t_def)
     lbalance = (tgc - tcc) * ALF
     rbalance = LAM * dtccdr
-    monos_g2cr = lbalance - rbalance
+    monos_surfc = lbalance - rbalance
 
-    monos =  np.vstack([monos_g2cp, monos_g2cr])
+    monos = np.vstack([monos_surfh, monos_surfc])
     rhs = np.full(len(monos), 0)
     cff = np.full(len(monos), 0.001)
     return monos, rhs, cff
+
 
 def boundary(val, ind, *grid_base):
     """
@@ -121,6 +125,7 @@ def boundary(val, ind, *grid_base):
     rhs = np.full(len(monos), val)
     cff = np.full(len(monos), 1)
     return monos, rhs, cff
+
 
 def boundary_revert(bnd1, bnd2, *grid_base):
     """
@@ -139,12 +144,13 @@ def boundary_revert(bnd1, bnd2, *grid_base):
     monos = np.vstack([revtc1, revtc2])
     rhs = np.full(len(monos), 0)
     cff = np.full(len(monos), 1)
-    return monos,rhs,cff
+    return monos, rhs, cff
+
 
 conditions = (gas_air(T, X, R[0]),
               ceramic_surface(T, X, R[0]),
               ceramic(T, X, R),
-              boundary(TGZ, 0, T, X[ 0], R[0]),
+              boundary(TGZ, 0, T, X[0], R[0]),
               boundary(TBZ, 2, T, X[-1], R[0]),
               boundary_revert(T[0], T[-1], X, R),
               )
@@ -161,13 +167,10 @@ A = sc.vstack(monos)
 rhs = np.hstack(rhs)
 cff = np.hstack(cff).reshape(-1, 1)
 
-print (rhs)
-
-xdop = 10
 s = CyClpSimplex()
-lp_dim = A.shape[1]+1
+lp_dim = A.shape[1] + 1
 
-A1 = np.hstack([ A, cff])
+A1 = np.hstack([A, cff])
 A2 = np.hstack([-A, cff])
 
 x = s.addVariable('x', lp_dim)
@@ -177,13 +180,13 @@ A2 = np.matrix(A2)
 b1 = CyLPArray(rhs)
 b2 = CyLPArray(-rhs)
 
-s += A1*x >= b1
-s += A2*x >= b2
+s += A1 * x >= b1
+s += A2 * x >= b2
 
-s += x[lp_dim-1] >= 0
-s += x[lp_dim-1] <= xdop
-s.objective = x[lp_dim-1]
-print ("START")
+s += x[lp_dim - 1] >= 0
+s += x[lp_dim - 1] <= xdop
+s.objective = x[lp_dim - 1]
+print("START")
 s.primal()
 outx = s.primalVariableSolution['x']
 
