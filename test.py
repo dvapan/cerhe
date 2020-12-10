@@ -1,5 +1,6 @@
 import numpy as np
 import scipy as sc
+from scipy.sparse import csr_matrix
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 
@@ -26,7 +27,7 @@ def nodes(*grid_base):
     """
     grid = np.meshgrid(*grid_base)
     grid_flat = map(lambda x: x.flatten(), grid)
-    return np.vstack(grid_flat).T
+    return np.vstack(list(grid_flat)).T
 
 
 t_def = 1000
@@ -127,7 +128,7 @@ def boundary(val, ind, *grid_base):
     return monos, rhs, cff
 
 
-def boundary_revert(bnd1, bnd2, *grid_base):
+def boundary_revert(ind1, bnd1, ind2, bnd2, *grid_base):
     """
     Boundary points for ceramic rever
     """
@@ -135,11 +136,15 @@ def boundary_revert(bnd1, bnd2, *grid_base):
     sb_pts_t1 = nodes(bnd2, *grid_base)
 
     tch = mvmonoss(sb_pts_t0, powers(3, 3), 1, cff_cnt)
+    tch = shifted(tch, ind1)
     tcc = mvmonoss(sb_pts_t1, powers(3, 3), 3, cff_cnt)
+    tcc = shifted(tcc, ind2)
     revtc1 = tch - tcc
-    tch = mvmonoss(sb_pts_t1, powers(3, 3), 1, cff_cnt)
     tcc = mvmonoss(sb_pts_t0, powers(3, 3), 3, cff_cnt)
-    revtc2 = tch - tcc
+    tcc = shifted(tcc, ind1)
+    tch = mvmonoss(sb_pts_t1, powers(3, 3), 1, cff_cnt)
+    tch = shifted(tch, ind2)
+    revtc2 = tcc - tch
 
     monos = np.vstack([revtc1, revtc2])
     rhs = np.full(len(monos), 0)
@@ -147,20 +152,144 @@ def boundary_revert(bnd1, bnd2, *grid_base):
     return monos, rhs, cff
 
 
-conditions = (gas_air(T, X, R[0]),
-              ceramic_surface(T, X, R[0]),
-              ceramic(T, X, R),
-              boundary(TGZ, 0, T, X[0], R[0]),
-              boundary(TBZ, 2, T, X[-1], R[0]),
-              boundary_revert(T[0], T[-1], X, R),
-              )
+def make_id(i,j):
+    return i*xreg + j
+
+def shifted(cffs,shift):
+    pcount = len(cffs)
+    psize = len(cffs[0])
+    lzeros = sc.zeros((pcount, psize * shift))
+    rzeros = sc.zeros((pcount, (max_reg - shift-1) * psize))
+    cffs = sc.hstack([lzeros,cffs,rzeros])
+    return cffs
+
+
+
 monos = []
 rhs = []
 cff = []
+for i in range(treg):
+    for j in range(xreg):
+        conditions = (gas_air(T_part[i], X_part[j], R[0]),
+                      ceramic_surface(T_part[i], X_part[j], R[0]),
+                      ceramic(T_part[i], X_part[j], R))
+
+        ind = make_id(i, j)
+        for m, r, c in conditions:
+            m = shifted(m, ind)
+            monos.append(m)
+            rhs.append(r)
+            cff.append(c)
+
+for i in range(treg):
+    m,r,c = boundary(TGZ,0, T_part[i],X_part[0][0],R[0])
+    ind = make_id(i, 0)
+    m = shifted(m, ind)
+    monos.append(m)
+    rhs.append(r)
+    cff.append(c)
+
+for i in range(treg):
+    m,r,c = boundary(TBZ, 2, T_part[i], X_part[xreg-1][-1], R[0])
+    ind = make_id(i, xreg-1)
+    m = shifted(m, ind)
+    monos.append(m)
+    rhs.append(r)
+    cff.append(c)
+
+
+for j in range(xreg):
+    ind1 = make_id(0, j)
+    ind2 = make_id(treg-1,j)
+    m,r,c = boundary_revert(ind1,T_part[0][0], ind2, T_part[treg - 1][-1], X_part[j],R)
+    monos.append(m)
+    rhs.append(r)
+    cff.append(c)
+
+def betw_blocks(pws, gind,dind, pind, R=None):
+    i, j = gind
+    di,dj = dind
+    if di > 0:
+        Ti1 = -1
+        Ti2 = 0
+    else:
+        Ti1 = 0
+        Ti2 = -1
+    ind = make_id(i, j)
+    if R is None:
+        grid_base = T_part[i][Ti1], X_part[j]
+    else:
+        grid_base = T_part[i][Ti1], X_part[j],R
+    ptr_bnd = nodes(*grid_base)
+    val = mvmonoss(ptr_bnd, pws, pind, cff_cnt)
+    val = shifted(val, ind)
+
+    ni, nj = i+di, j
+    indn = make_id(ni, nj)
+    if R is None:
+        grid_basen = T_part[ni][Ti2], X_part[nj]
+    else:
+        grid_basen = T_part[ni][Ti2], X_part[nj], R
+    ptr_bndn = nodes(*grid_basen)
+    valn = mvmonoss(ptr_bndn, pws, pind, cff_cnt)
+    valn = shifted(valn, indn)
+
+    monos = []
+
+    monos.append(valn - val)
+
+    if dj > 0:
+        Tj1 = -1
+        Tj2 = 0
+    else:
+        Tj1 = 0
+        Tj2 = -1
+    if R is None:
+        grid_base = T_part[i], X_part[j][Tj1]
+    else:
+        grid_base = T_part[i], X_part[j][Tj1],R
+    ptr_bnd = nodes(*grid_base)
+    val = mvmonoss(ptr_bnd, pws, pind, cff_cnt)
+    val = shifted(val, ind)
+
+    ni, nj = i, j+dj
+    indn = make_id(ni, nj)
+    if R is None:
+        grid_basen = T_part[ni], X_part[nj][Tj2]
+    else:
+        grid_basen = T_part[ni], X_part[nj][Tj2], R
+
+    ptr_bndn = nodes(*grid_basen)
+    valn = mvmonoss(ptr_bndn, pws, pind, cff_cnt)
+    valn = shifted(valn, indn)
+
+    monos.append(valn - val)
+    monos = np.vstack(monos)
+    rhs = np.full(len(monos), 0)
+    cff = np.full(len(monos), 1)
+    return monos, rhs, cff
+
+
+conditions = []
+for i in range(treg - 1):
+    for j in range(xreg - 1):
+        #gas heat connect blocks
+        conditions.append(betw_blocks(powers(3, 2), (i, j),(1,1), 0))
+        #cer heat connect blocks
+        conditions.append(betw_blocks(powers(3, 3), (i, j),(1,1), 1, R))
+for i in range(1,treg):
+    for j in range(1, xreg):
+        #gas cooling connect blocks
+        conditions.append(betw_blocks(powers(3, 2), (i, j),(-1,-1), 2))
+        #cer cooling connect blocks
+        conditions.append(betw_blocks(powers(3, 3), (i, j),(-1,-1), 3, R))
+
 for m, r, c in conditions:
     monos.append(m)
     rhs.append(r)
     cff.append(c)
+
+
 
 A = sc.vstack(monos)
 
@@ -176,6 +305,7 @@ A2 = np.hstack([-A, cff])
 x = s.addVariable('x', lp_dim)
 A1 = np.matrix(A1)
 A2 = np.matrix(A2)
+nnz = np.count_nonzero(A1)+np.count_nonzero(A2)
 
 b1 = CyLPArray(rhs)
 b2 = CyLPArray(-rhs)
@@ -184,10 +314,18 @@ s += A1 * x >= b1
 s += A2 * x >= b2
 
 s += x[lp_dim - 1] >= 0
-s += x[lp_dim - 1] <= xdop
+s += x[lp_dim - 1] <= TGZ
 s.objective = x[lp_dim - 1]
+
+print ("TASK SIZE:")
+print ("XCOUNT:",lp_dim)
+print ("GXCOUNT:",len(rhs)+len(rhs))
+nnz = np.count_nonzero(A1)+np.count_nonzero(A2)
+aec = len(rhs)*lp_dim*2
+print("nonzeros:",nnz, aec, nnz/aec)
+
 print("START")
 s.primal()
 outx = s.primalVariableSolution['x']
-
-np.savetxt("test_cff", outx[:-1])
+pc = sc.split(outx[:-1],max_reg)
+np.savetxt("test_cff", pc)

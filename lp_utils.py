@@ -1,6 +1,7 @@
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
 import scipy as sc
+import numpy as np
 
 VBND = 10**3
 
@@ -10,6 +11,9 @@ def slvlprd(prb, lp_dim, xdop):
     s = CyClpSimplex()
     x = s.addVariable('x', lp_dim)
     A = prb[:, 1:]
+    nnz = np.count_nonzero(A)
+    aec = len(A)*len(A[0])
+    print(nnz, aec, nnz/aec)
     A = sc.matrix(A)
     b = prb[:, 0]
     b = CyLPArray(b)
