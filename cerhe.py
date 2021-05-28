@@ -290,42 +290,76 @@ for m, r, c in conditions:
     cff.append(c)
 
 
+import cProfile
+
+
+def profile(func):
+    """Decorator for run function profile"""
+    def wrapper(*args, **kwargs):
+        profile_filename = func.__name__ + '.prof'
+        profiler = cProfile.Profile()
+        result = profiler.runcall(func, *args, **kwargs)
+        profiler.dump_stats(profile_filename)
+        return result
+    return wrapper
+
+def solve_simplex(A, rhs, cff):
+    s = CyClpSimplex()
+    s.logLevel = 2
+    lp_dim = A.shape[1] + 1
+
+    A1 = np.hstack([A, cff])
+    A2 = np.hstack([-A, cff])
+
+    x = s.addVariable('x', lp_dim)
+    A1 = np.matrix(A1)
+    A2 = np.matrix(A2)
+    nnz = np.count_nonzero(A1)+np.count_nonzero(A2)
+
+    b1 = CyLPArray(rhs)
+    b2 = CyLPArray(-rhs)
+
+    s += A1 * x >= b1
+    s += A2 * x >= b2
+
+    s += x[lp_dim - 1] >= 0
+    s += x[lp_dim - 1] <= TGZ
+    s.objective = x[lp_dim - 1]
+
+    # print ("TASK SIZE:")
+    # print ("XCOUNT:",lp_dim)
+    # print ("GXCOUNT:",len(rhs)+len(rhs))
+    # nnz = np.count_nonzero(A1)+np.count_nonzero(A2)
+    # aec = len(rhs)*lp_dim*2
+    # print("nonzeros:",nnz, aec, nnz/aec)
+
+    # print("START")
+    s.primal()
+    outx = s.primalVariableSolution['x']
+    return outx
+
+@profile
+def solve_simplex_parts(A,rhs,cff):
+    split_indeces = np.arange(500,len(A),500)
+    s_A = np.vsplit(A,split_indeces)
+    s_rhs = np.split(rhs, split_indeces)
+    s_cff = np.split(cff, split_indeces)
+    outx = []
+    for i in range(len(split_indeces)):
+        outx.append(solve_simplex(s_A[i], s_rhs[i], s_cff[i]))
+    return outx
+        
+
+
+    
 
 A = sc.vstack(monos)
+
 
 rhs = np.hstack(rhs)
 cff = np.hstack(cff).reshape(-1, 1)
 
-s = CyClpSimplex()
-lp_dim = A.shape[1] + 1
-
-A1 = np.hstack([A, cff])
-A2 = np.hstack([-A, cff])
-
-x = s.addVariable('x', lp_dim)
-A1 = np.matrix(A1)
-A2 = np.matrix(A2)
-nnz = np.count_nonzero(A1)+np.count_nonzero(A2)
-
-b1 = CyLPArray(rhs)
-b2 = CyLPArray(-rhs)
-
-s += A1 * x >= b1
-s += A2 * x >= b2
-
-s += x[lp_dim - 1] >= 0
-s += x[lp_dim - 1] <= TGZ
-s.objective = x[lp_dim - 1]
-
-print ("TASK SIZE:")
-print ("XCOUNT:",lp_dim)
-print ("GXCOUNT:",len(rhs)+len(rhs))
-nnz = np.count_nonzero(A1)+np.count_nonzero(A2)
-aec = len(rhs)*lp_dim*2
-print("nonzeros:",nnz, aec, nnz/aec)
-
-print("START")
-s.primal()
-outx = s.primalVariableSolution['x']
+solve_simplex_parts(A,rhs,cff)
+exit()
 pc = sc.split(outx[:-1],max_reg)
-np.savetxt("test_cff", pc)
+np.savetxt("poly_coeff", pc)
