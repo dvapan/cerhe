@@ -302,64 +302,114 @@ def profile(func):
         profiler.dump_stats(profile_filename)
         return result
     return wrapper
+    
 
-def solve_simplex(A, rhs, cff):
+@profile
+def solve_simplex_splitted(A,rhs, parts):
+    import numpy.random
+    task = np.hstack([A,rhs.reshape(-1, 1)])
+    np.random.shuffle(task)
+    tasks = np.array_split(task,parts)
+    old_tasks = []
+    state = 'f'
+    while len(tasks) > 1:
+        new_tasks = []
+        xs = []
+        for task in tasks:
+            A = task[:,:-1]
+            rhs = task[:,-1]
+            x = solve_simplex(A,rhs)
+            xs.append(x)
+            cnst = np.dot(A,x) - rhs
+            sorted_task = task[cnst.argsort()]
+            worst_constraint = sorted_task[:len(task)//2, :]
+            if state == 'spf' or state == 'f':
+                new_tasks.append(worst_constraint)
+                state = 'sps'
+            elif state == 'sps':
+                new_tasks[-1] = np.vstack(
+                    [new_tasks[-1], worst_constraint])
+                state = 'spf'
+        state = 'spf'       
+        tasks = new_tasks
+        old_tasks.append(tasks)
+
+    A_big = task[:,:-1]
+    rhs_big = task[:,-1]
+
+    task = tasks[0]
+    A = task[:,:-1]
+    rhs = task[:,-1]
+    x = solve_simplex(A,rhs)
+    otkl_big = np.dot(A_big,x) - rhs_big
+    worst_constraints_big = task[otkl_big < 1e-10]
+    
+    # cnst = np.dot(A,x) - rhs
+    # sorted_task = task[cnst.argsort()]
+    # worst_constraint = sorted_task[:len(task)//2, :]
+
+    task = np.vstack([task, worst_constraints_big])
+    A = task[:,:-1]
+    rhs = task[:,-1]
+    print("add all unfulfilled constraints")
+    x = solve_simplex(A,rhs)
+
+    return x
+        
+        
+
+def solve_simplex(A, rhs):
     s = CyClpSimplex()
-    s.logLevel = 2
-    lp_dim = A.shape[1] + 1
-
-    A1 = np.hstack([A, cff])
-    A2 = np.hstack([-A, cff])
+    s.logLevel = 1
+    lp_dim = A.shape[1] 
 
     x = s.addVariable('x', lp_dim)
-    A1 = np.matrix(A1)
-    A2 = np.matrix(A2)
-    nnz = np.count_nonzero(A1)+np.count_nonzero(A2)
+    A = np.matrix(A)
 
-    b1 = CyLPArray(rhs)
-    b2 = CyLPArray(-rhs)
+    rhs = CyLPArray(rhs)
 
-    s += A1 * x >= b1
-    s += A2 * x >= b2
+    s += A * x >= rhs
 
     s += x[lp_dim - 1] >= 0
     s += x[lp_dim - 1] <= TGZ
     s.objective = x[lp_dim - 1]
 
-    # print ("TASK SIZE:")
-    # print ("XCOUNT:",lp_dim)
-    # print ("GXCOUNT:",len(rhs)+len(rhs))
-    # nnz = np.count_nonzero(A1)+np.count_nonzero(A2)
-    # aec = len(rhs)*lp_dim*2
-    # print("nonzeros:",nnz, aec, nnz/aec)
+    nnz = np.count_nonzero(A)
+    print (f"TASK SIZE XCOUNT: {lp_dim} GXCOUNT: {len(rhs)}")
 
-    # print("START")
-    s.primal()
-    outx = s.primalVariableSolution['x']
-    return outx
-
-@profile
-def solve_simplex_parts(A,rhs,cff):
-    split_indeces = np.arange(500,len(A),500)
-    s_A = np.vsplit(A,split_indeces)
-    s_rhs = np.split(rhs, split_indeces)
-    s_cff = np.split(cff, split_indeces)
-    outx = []
-    for i in range(len(split_indeces)):
-        outx.append(solve_simplex(s_A[i], s_rhs[i], s_cff[i]))
-    return outx
-        
-
+    print("START SIMPLEX")
 
     
+    s.primal()
+    # outx = s.primalVariableSolution['x']
+    k = list(s.primalConstraintSolution.keys())
+    print("END SIMPLEX")
+    print(f"{s.getStatusString()} objective: {s.objectiveValue}")
+    print("nonzeros rhs:",np.count_nonzero(s.primalConstraintSolution[k[0]]))
+    return s.primalVariableSolution['x']
+
+
+
+import sys
+np.set_printoptions(threshold=sys.maxsize)
 
 A = sc.vstack(monos)
-
-
 rhs = np.hstack(rhs)
 cff = np.hstack(cff).reshape(-1, 1)
 
-solve_simplex_parts(A,rhs,cff)
-exit()
-pc = sc.split(outx[:-1],max_reg)
-np.savetxt("poly_coeff", pc)
+
+A1 = np.hstack([A, cff])
+A2 = np.hstack([-A, cff])
+A = np.vstack([A1,A2])
+
+rhs = np.hstack([rhs,-rhs])
+
+
+lp_dim = len(A[0])
+res = solve_simplex_splitted(A,rhs,16)
+otkl = np.dot(A,res)-rhs
+
+np.savetxt("otkl",np.sort(otkl))
+
+pc = sc.split(res[:-1],max_reg)
+np.savetxt("cerhe_cff", pc)
