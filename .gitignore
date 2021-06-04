@@ -118,6 +118,7 @@ resd
 poly_coeff*
 poly2d
 poly3d
+cerhe_cff
 *~
 
 otkl
@@ -132,3 +133,5 @@ tmp
 *.idx
 *.out
 *.pdf
+
+*.prof
