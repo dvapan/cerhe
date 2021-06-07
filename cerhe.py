@@ -11,6 +11,8 @@ from gas_properties import TGZ, gas_coefficients
 from air_properties import TBZ, air_coefficients
 import ceramic_properties as cp
 
+import cProfile
+
 
 def mvmonoss(x, powers, shift_ind, cff_cnt, diff=None):
     lzeros = sum((cff_cnt[i] for i in range(shift_ind)))
@@ -34,7 +36,7 @@ t_def = 1000
 cff_cnt = [10, 20, 10, 20]
 
 
-def ceramic(*grid_base):
+def ceramic(*grid_base, df=None):
     """ Ceramic to ceramic heat transfer
     """
     in_pts_cr = nodes(*grid_base)
@@ -290,7 +292,6 @@ for m, r, c in conditions:
     cff.append(c)
 
 
-import cProfile
 
 
 def profile(func):
@@ -304,25 +305,29 @@ def profile(func):
     return wrapper
     
 
-@profile
 def solve_simplex_splitted(A,rhs, parts):
     import numpy.random
-    task = np.hstack([A,rhs.reshape(-1, 1)])
+    indeces = np.arange(len(A))
+    task = np.hstack([A,rhs.reshape(-1, 1),indeces.reshape(-1,1)])
     np.random.shuffle(task)
     tasks = np.array_split(task,parts)
+    indeces_part = np.array_split(indeces, parts)
     old_tasks = []
     state = 'f'
     while len(tasks) > 1:
         new_tasks = []
         xs = []
-        for task in tasks:
-            A = task[:,:-1]
-            rhs = task[:,-1]
+        for i,task in enumerate(tasks):
+            A = task[:,:-2]
+            rhs = task[:,-2]
+            indeces = task[:,-1]
             x = solve_simplex(A,rhs)
             xs.append(x)
             cnst = np.dot(A,x) - rhs
             sorted_task = task[cnst.argsort()]
             worst_constraint = sorted_task[:len(task)//2, :]
+            excl = indeces[:len(task)//2].astype(int)
+            cnst_excludes[excl] += 1
             if state == 'spf' or state == 'f':
                 new_tasks.append(worst_constraint)
                 state = 'sps'
@@ -334,23 +339,26 @@ def solve_simplex_splitted(A,rhs, parts):
         tasks = new_tasks
         old_tasks.append(tasks)
 
-    A_big = task[:,:-1]
-    rhs_big = task[:,-1]
+    A_big = task[:,:-2]
+    rhs_big = task[:,-2]
 
     task = tasks[0]
-    A = task[:,:-1]
-    rhs = task[:,-1]
+    A = task[:,:-2]
+    rhs = task[:,-2]
     x = solve_simplex(A,rhs)
     otkl_big = np.dot(A_big,x) - rhs_big
     worst_constraints_big = task[otkl_big < 1e-10]
+    i = np.argmin(otkl_big)
+    print(i,otkl_big[i], cnst_excludes[i])
+    
     
     # cnst = np.dot(A,x) - rhs
     # sorted_task = task[cnst.argsort()]
     # worst_constraint = sorted_task[:len(task)//2, :]
 
     task = np.vstack([task, worst_constraints_big])
-    A = task[:,:-1]
-    rhs = task[:,-1]
+    A = task[:,:-2]
+    rhs = task[:,-2]
     print("add all unfulfilled constraints")
     x = solve_simplex(A,rhs)
 
@@ -404,12 +412,18 @@ A = np.vstack([A1,A2])
 
 rhs = np.hstack([rhs,-rhs])
 
+cnst_excludes = np.zeros(len(A))
+
 
 lp_dim = len(A[0])
 res = solve_simplex_splitted(A,rhs,16)
 otkl = np.dot(A,res)-rhs
 
-np.savetxt("otkl",np.sort(otkl))
+i = np.argmin(otkl)
+print(i,otkl[i], cnst_excludes[i])
+
+np.savetxt("cnst_excludes.dat",cnst_excludes, fmt = "%d")
+np.savetxt("otkl.dat",np.sort(otkl), fmt="%.3f")
 
 pc = sc.split(res[:-1],max_reg)
 np.savetxt("cerhe_cff", pc)
