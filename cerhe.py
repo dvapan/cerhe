@@ -325,10 +325,10 @@ def solve_simplex_splitted(A,rhs, parts):
             A = task[:,:-2]
             rhs = task[:,-2]
             indeces = task[:,-1]
-            x, u = solve_simplex(A,rhs)
+            x, u = solve_simplex(A,rhs,0)
             xs.append(x)
             cnst = np.dot(A,x) - rhs
-            print("nonzero cnst",np.count_nonzero(cnst))
+            print("nonzero cnst",np.count_nonzero(cnst), len(cnst))
             sorted_task = task[cnst.argsort()]
             worst_constraint = sorted_task[:len(task)//2, :]
             excl = indeces[:len(task)//2].astype(int)
@@ -336,8 +336,9 @@ def solve_simplex_splitted(A,rhs, parts):
 
             meta_rhs = np.dot(np.dot(A,x),u)
             meta_a = np.dot(A.T, u)
+            print("########################################################",meta_a[-1], meta_rhs)
             if state == 'f':
-                meta_cnst = np.hstack([meta_a,[-meta_rhs],[0]])
+                meta_cnst = np.hstack([meta_a,[meta_rhs],[0]])
                 meta_task = meta_cnst
             else:
                 meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
@@ -353,50 +354,132 @@ def solve_simplex_splitted(A,rhs, parts):
         tasks = new_tasks
         old_tasks.append(tasks)
 
-    A_big = base_task[:,:-2]
-    rhs_big = base_task[:,-2]
 
     task = tasks[0]
     task = np.vstack([task,meta_task])
     A = task[:,:-2]
     rhs = task[:,-2]
-    x,u = solve_simplex(A,rhs)
-    otkl_big = np.dot(A_big,x) - rhs_big
-    otkl = np.dot(A,x) - rhs
-    i = np.argmin(otkl_big)
-    print("nonzero cnst",np.count_nonzero(otkl_big))
-    print("nonzero current",np.count_nonzero(otkl))
-    # np.savetxt("otkl.dat",np.sort(otkl), fmt="%.3f")
-    
-    print(i,otkl_big[i], cnst_excludes[i])
-    
-
-    worst_constraints_big = base_task[otkl_big < 1e-10]
-    
+    x,u = solve_simplex(A,rhs,0)
+    cnst = np.dot(A,x) - rhs
+    print("nonzero cnst",np.count_nonzero(cnst), len(cnst))
+    sorted_task = task[cnst.argsort()]
+    worst_constraint = sorted_task[:700, :]
+    excl = indeces[:len(task)//2].astype(int)
+    cnst_excludes[excl] += 1
     meta_rhs = np.dot(np.dot(A,x),u)
     meta_a = np.dot(A.T, u)
     meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
     meta_task = np.vstack([meta_task, meta_cnst])
+
+
+    
+    print("#########################nonzero cnst",np.count_nonzero(cnst), len(cnst))
+    # np.savetxt("otkl.dat",np.sort(otkl), fmt="%.3f")
+    print("############################################ HEAP SOLUTION FINISH")
+
+    A_big = base_task[:,:-2]
+    rhs_big = base_task[:,-2]
+
+    iteration = 0
+    while iteration < 100:
+        cnst = np.dot(A_big,x) - rhs_big
+        sorted_task = base_task[cnst.argsort()]
+        worst_constraints_big = sorted_task[:2000, :]
+        i = np.argmin(cnst)
+        print("nonzero cnst",len(cnst[cnst < 0]), len(cnst))
+        print(i,cnst[i], cnst_excludes[i])
+
+        task = np.vstack([worst_constraint, worst_constraints_big, meta_task])
+        A = task[:,:-2]
+        rhs = task[:,-2]
+        print("add all unfulfilled constraints")
+        x,u = solve_simplex(A,rhs,logLevel=0)
+
+        cnst = np.dot(A,x) - rhs
+        # print (u*cnst)
+        np.savetxt(f"test_u_{iteration}",u)
+        np.savetxt(f"test_cnst_{iteration}",cnst)
+        print("nonzero cnst",np.count_nonzero(cnst), len(cnst))
+        sorted_task = task[cnst.argsort()]
+        worst_constraint = sorted_task[:700, :]
+
+        meta_rhs = np.dot(np.dot(A,x),u)
+        meta_a = np.dot(A.T, u)
+        meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
+        meta_task = np.vstack([meta_task, meta_cnst])
+        print("########################################################",meta_a[-1], meta_rhs)
+
+        iteration += 1
+
+    
+    # i = np.argmin(otkl_big)    
+    # print("insert solution to main task")
+    # print("nonzero cnst",len(otkl_big[otkl_big < 0]), len(otkl_big))
+    # print(i,otkl_big[i], cnst_excludes[i])
+    
+    # worst_constraints_big = base_task[otkl_big < 0]
+    
+    # meta_rhs = np.dot(np.dot(A,x),u)
+    # meta_a = np.dot(A.T, u) 
+    # meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
+    # meta_task = np.vstack([meta_task, meta_cnst])
     
 
-    task = np.vstack([task, worst_constraints_big, meta_task])
-    A = task[:,:-2]
-    rhs = task[:,-2]
-    print("add all unfulfilled constraints")
-    x,_ = solve_simplex(A,rhs)
+    # task = np.vstack([task, worst_constraints_big, meta_task])
+    # A = task[:,:-2]
+    # rhs = task[:,-2]
+    # print("add all unfulfilled constraints")
+    # x,u = solve_simplex(A,rhs)
 
+    # meta_rhs = np.dot(np.dot(A,x),u)
+    # meta_a = np.dot(A.T, u)
+    
+    # meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
+    # meta_task = np.vstack([meta_task, meta_cnst])
+
+    # otkl_big = np.dot(A_big,x) - rhs_big
+    # i = np.argmin(otkl_big)
+    # print("nonzero cnst",len(otkl_big[otkl_big < 0]), len(otkl_big))
+    # # np.savetxt("otkl.dat",np.sort(otkl), fmt="%.3f")
+    # print(i,otkl_big[i], cnst_excludes[i])
+    # worst_constraints_big = base_task[otkl_big < 0]
+
+    # task = np.vstack([task,worst_constraints_big, meta_task])
+    # A = task[:,:-2]
+    # rhs = task[:,-2]
+    # print("add all unfulfilled constraints")
+    # x,u = solve_simplex(A,rhs)
+
+    # meta_rhs = np.dot(np.dot(A,x),u)
+    # meta_a = np.dot(A.T, u)
+   
+    # meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
+    # meta_task = np.vstack([task, meta_task, meta_cnst])
+
+    # otkl_big = np.dot(A_big,x) - rhs_big
+    # i = np.argmin(otkl_big)
+    # print("nonzero cnst",len(otkl_big[otkl_big < 0]), len(otkl_big))
+    # # np.savetxt("otkl.dat",np.sort(otkl), fmt="%.3f")
+    # print(i,otkl_big[i], cnst_excludes[i])
+    # worst_constraints_big = base_task[otkl_big < 0]
+
+    # task = np.vstack([worst_constraints_big, meta_task])
+    # A = task[:,:-2]
+    # rhs = task[:,-2]
+    # print("add all unfulfilled constraints")
+    # x,u = solve_simplex(A,rhs)
+    
     return x
         
         
 
-def solve_simplex(A, rhs):
+def solve_simplex(A, rhs, logLevel=1):
     s = CyClpSimplex()
-    s.logLevel = 1
+    s.logLevel = logLevel
     lp_dim = A.shape[1] 
 
     x = s.addVariable('x', lp_dim)
     A = np.matrix(A)
-
     rhs = CyLPArray(rhs)
 
     s += A * x >= rhs
@@ -417,7 +500,8 @@ def solve_simplex(A, rhs):
     k2 =list(s.dualConstraintSolution.keys())
     print("END SIMPLEX")
     q = s.dualConstraintSolution[k2[0]]
-    np.savetxt(f"data/dual_{time}",np.sort(q),fmt="%.3f")
+    if s.objectiveValue>10:
+        np.savetxt("param.dat",A[:,-1],fmt="%.3f")
     print(f"{s.getStatusString()} objective: {s.objectiveValue}")
     # print("nonzeros rhs:",np.count_nonzero(s.primalConstraintSolution[k[0]]))
     # print("nonzeros dual:",np.count_nonzero(s.dualConstraintSolution[k2[0]]))
@@ -433,9 +517,9 @@ A = sc.vstack(monos)
 rhs = np.hstack(rhs)
 cff = np.hstack(cff).reshape(-1, 1)
 
-
-A1 = np.hstack([A, cff])
-A2 = np.hstack([-A, cff])
+A /= cff
+A1 = np.hstack([A, np.ones_like(cff)])
+A2 = np.hstack([-A, np.ones_like(cff)])
 A = np.vstack([A1,A2])
 
 rhs = np.hstack([rhs,-rhs])
@@ -447,7 +531,7 @@ res = solve_simplex_splitted(A,rhs,16)
 otkl = np.dot(A,res)-rhs
 
 i = np.argmin(otkl)
-print("nonzero cnst",np.count_nonzero(otkl), len(otkl))
+print("nonzero cnst",len(otkl[otkl < 0]), len(otkl))
 print(i,otkl[i], cnst_excludes[i])
 
 np.savetxt("cnst_excludes.dat",cnst_excludes, fmt = "%d")
