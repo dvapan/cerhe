@@ -410,64 +410,6 @@ def solve_simplex_splitted(A,rhs, parts):
         print("########################################################",meta_a[-1], meta_rhs)
 
         iteration += 1
-
-    
-    # i = np.argmin(otkl_big)    
-    # print("insert solution to main task")
-    # print("nonzero cnst",len(otkl_big[otkl_big < 0]), len(otkl_big))
-    # print(i,otkl_big[i], cnst_excludes[i])
-    
-    # worst_constraints_big = base_task[otkl_big < 0]
-    
-    # meta_rhs = np.dot(np.dot(A,x),u)
-    # meta_a = np.dot(A.T, u) 
-    # meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
-    # meta_task = np.vstack([meta_task, meta_cnst])
-    
-
-    # task = np.vstack([task, worst_constraints_big, meta_task])
-    # A = task[:,:-2]
-    # rhs = task[:,-2]
-    # print("add all unfulfilled constraints")
-    # x,u = solve_simplex(A,rhs)
-
-    # meta_rhs = np.dot(np.dot(A,x),u)
-    # meta_a = np.dot(A.T, u)
-    
-    # meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
-    # meta_task = np.vstack([meta_task, meta_cnst])
-
-    # otkl_big = np.dot(A_big,x) - rhs_big
-    # i = np.argmin(otkl_big)
-    # print("nonzero cnst",len(otkl_big[otkl_big < 0]), len(otkl_big))
-    # # np.savetxt("otkl.dat",np.sort(otkl), fmt="%.3f")
-    # print(i,otkl_big[i], cnst_excludes[i])
-    # worst_constraints_big = base_task[otkl_big < 0]
-
-    # task = np.vstack([task,worst_constraints_big, meta_task])
-    # A = task[:,:-2]
-    # rhs = task[:,-2]
-    # print("add all unfulfilled constraints")
-    # x,u = solve_simplex(A,rhs)
-
-    # meta_rhs = np.dot(np.dot(A,x),u)
-    # meta_a = np.dot(A.T, u)
-   
-    # meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
-    # meta_task = np.vstack([task, meta_task, meta_cnst])
-
-    # otkl_big = np.dot(A_big,x) - rhs_big
-    # i = np.argmin(otkl_big)
-    # print("nonzero cnst",len(otkl_big[otkl_big < 0]), len(otkl_big))
-    # # np.savetxt("otkl.dat",np.sort(otkl), fmt="%.3f")
-    # print(i,otkl_big[i], cnst_excludes[i])
-    # worst_constraints_big = base_task[otkl_big < 0]
-
-    # task = np.vstack([worst_constraints_big, meta_task])
-    # A = task[:,:-2]
-    # rhs = task[:,-2]
-    # print("add all unfulfilled constraints")
-    # x,u = solve_simplex(A,rhs)
     
     return x
         
