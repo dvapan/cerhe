@@ -314,12 +314,14 @@ def solve_simplex_splitted(A,rhs, parts):
     tasks = np.array_split(base_task,parts)
     old_tasks = []
     state = 'f'
-    
+    xs = []
     while len(tasks) > 1:
         new_tasks = []
         wc = []
         for i,task in enumerate(tasks):
             x, u, wc, hyp = solve_simplex_hyperplanes(task,hyp,1)
+            xs.append((len(hyp)-1,x))
+            print(hyp.shape)
             if state == 'spf' or state == 'f':
                 new_tasks.append(wc)
                 state = 'sps'
@@ -331,11 +333,11 @@ def solve_simplex_splitted(A,rhs, parts):
         tasks = new_tasks
         old_tasks.append(tasks)
         print("##########################",len(tasks))
-
-
+        
     task = tasks[0]
     x, u, wc, hyp = solve_simplex_hyperplanes(task,hyp)
 
+   
     return x
 
     
@@ -378,7 +380,7 @@ def solve_simplex_splitted(A,rhs, parts):
     
     return x
 
-def solve_simplex_hyperplanes(task_pos, task_neg, hyperplanes, logLevel=0):
+def solve_simplex_hyperplanes(task, hyperplanes, logLevel=0):
     
     A = task[:,:-1]
     rhs = task[:,-1]
@@ -414,14 +416,17 @@ def solve_simplex_hyperplanes(task_pos, task_neg, hyperplanes, logLevel=0):
     worst_constraint_pos = worst_constraint[worst_constraint[:,-1] == 0,:-1]
     worst_constraint_neg = worst_constraint[worst_constraint[:,-1] == 1,:-1]
 
-    ind = worst_constraint_pos[:,-1].astype(int)
-    worst_constraint_pos_added = A_neg[ind]
-
     ind = worst_constraint_neg[:,-1].astype(int)
     worst_constraint_neg_added = A_pos[ind]
+    worst_constraint_pos = np.vstack([worst_constraint_pos[:,:-2], worst_constraint_neg_added])
 
-    worst_constraint = np.vstack([worst_constraint_pos[:,:-2], worst_constraint_pos_added,
-                                  worst_constraint_neg[:,:-2], worst_constraint_neg_added])
+    worst_constraint = worst_constraint_pos
+
+    # ind = worst_constraint_neg[:,-1].astype(int)
+    # worst_constraint_neg_added = A_pos[ind]
+
+    # worst_constraint = np.vstack([worst_constraint_pos[:,:-2], worst_constraint_pos_added,
+    #                               worst_constraint_neg[:,:-2], worst_constraint_neg_added])
 
     hyp_rhs = np.dot(np.dot(A_all,x),u)
     hyp_a = np.dot(A_all.T, u)
@@ -470,7 +475,7 @@ def solve_simplex(A, rhs, logLevel=0):
 
 
 import sys
-np.set_printoptions(threshold=sys.maxsize)
+#np.set_printoptions(threshold=sys.maxsize)
 
 A = sc.vstack(monos)
 rhs = np.hstack(rhs)
