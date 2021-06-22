@@ -13,6 +13,7 @@ import ceramic_properties as cp
 
 import cProfile
 
+from collections import namedtuple
 
 def mvmonoss(x, powers, shift_ind, cff_cnt, diff=None):
     lzeros = sum((cff_cnt[i] for i in range(shift_ind)))
@@ -303,82 +304,46 @@ def profile(func):
         profiler.dump_stats(profile_filename)
         return result
     return wrapper
-    
+
 
 def solve_simplex_splitted(A,rhs, parts):
     import numpy.random
-    indeces = np.arange(len(A))
-    base_task = np.hstack([A,rhs.reshape(-1, 1),indeces.reshape(-1,1)])
-    meta_task = None
+    base_task = np.hstack([A,rhs.reshape(-1, 1)])
+    hyp = None
     np.random.shuffle(base_task)
     tasks = np.array_split(base_task,parts)
-    indeces_part = np.array_split(indeces, parts)
     old_tasks = []
     state = 'f'
     
     while len(tasks) > 1:
         new_tasks = []
-        xs = []
+        wc = []
         for i,task in enumerate(tasks):
-            if state != 'f':
-                task = np.vstack([task,meta_task])
-            A = task[:,:-2]
-            rhs = task[:,-2]
-            indeces = task[:,-1]
-            x, u = solve_simplex(A,rhs,0)
-            xs.append(x)
-            cnst = np.dot(A,x) - rhs
-            print("nonzero cnst",np.count_nonzero(cnst), len(cnst))
-            sorted_task = task[cnst.argsort()]
-            worst_constraint = sorted_task[:len(task)//2, :]
-            excl = indeces[:len(task)//2].astype(int)
-            cnst_excludes[excl] += 1
-
-            meta_rhs = np.dot(np.dot(A,x),u)
-            meta_a = np.dot(A.T, u)
-            print("########################################################",meta_a[-1], meta_rhs)
-            if state == 'f':
-                meta_cnst = np.hstack([meta_a,[meta_rhs],[0]])
-                meta_task = meta_cnst
-            else:
-                meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
-                meta_task = np.vstack([meta_task, meta_cnst])
+            x, u, wc, hyp = solve_simplex_hyperplanes(task,hyp,1)
             if state == 'spf' or state == 'f':
-                new_tasks.append(worst_constraint)
+                new_tasks.append(wc)
                 state = 'sps'
             elif state == 'sps':
                 new_tasks[-1] = np.vstack(
-                    [new_tasks[-1], worst_constraint])
+                    [new_tasks[-1], wc])
                 state = 'spf'
         state = 'spf'       
         tasks = new_tasks
         old_tasks.append(tasks)
+        print("##########################",len(tasks))
 
 
     task = tasks[0]
-    task = np.vstack([task,meta_task])
-    A = task[:,:-2]
-    rhs = task[:,-2]
-    x,u = solve_simplex(A,rhs,0)
-    cnst = np.dot(A,x) - rhs
-    print("nonzero cnst",np.count_nonzero(cnst), len(cnst))
-    sorted_task = task[cnst.argsort()]
-    worst_constraint = sorted_task[:700, :]
-    excl = indeces[:len(task)//2].astype(int)
-    cnst_excludes[excl] += 1
-    meta_rhs = np.dot(np.dot(A,x),u)
-    meta_a = np.dot(A.T, u)
-    meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
-    meta_task = np.vstack([meta_task, meta_cnst])
+    x, u, wc, hyp = solve_simplex_hyperplanes(task,hyp)
 
+    return x
 
     
-    print("#########################nonzero cnst",np.count_nonzero(cnst), len(cnst))
-    # np.savetxt("otkl.dat",np.sort(otkl), fmt="%.3f")
+    print("######################### nonzero cnst",np.count_nonzero(cnst), len(cnst))
     print("############################################ HEAP SOLUTION FINISH")
 
-    A_big = base_task[:,:-2]
-    rhs_big = base_task[:,-2]
+    A_big = base_task[:,:-1]
+    rhs_big = base_task[:,-1]
 
     iteration = 0
     while iteration < 100:
@@ -387,11 +352,11 @@ def solve_simplex_splitted(A,rhs, parts):
         worst_constraints_big = sorted_task[:2000, :]
         i = np.argmin(cnst)
         print("nonzero cnst",len(cnst[cnst < 0]), len(cnst))
-        print(i,cnst[i], cnst_excludes[i])
+        print(i,cnst[i])
 
         task = np.vstack([worst_constraint, worst_constraints_big, meta_task])
-        A = task[:,:-2]
-        rhs = task[:,-2]
+        A = task[:,:-1]
+        rhs = task[:,-1]
         print("add all unfulfilled constraints")
         x,u = solve_simplex(A,rhs,logLevel=0)
 
@@ -405,21 +370,77 @@ def solve_simplex_splitted(A,rhs, parts):
 
         meta_rhs = np.dot(np.dot(A,x),u)
         meta_a = np.dot(A.T, u)
-        meta_cnst = np.hstack([meta_a,[meta_rhs],[len(meta_task)]])
+        meta_cnst = np.hstack([meta_a,[meta_rhs]])
         meta_task = np.vstack([meta_task, meta_cnst])
         print("########################################################",meta_a[-1], meta_rhs)
 
         iteration += 1
     
     return x
-        
+
+def solve_simplex_hyperplanes(task_pos, task_neg, hyperplanes, logLevel=0):
+    
+    A = task[:,:-1]
+    rhs = task[:,-1]
+
+    ones = np.ones(len(A)).reshape(-1,1)
+    
+    A_pos = np.hstack([A, ones])
+    A_neg = np.hstack([-A, ones])
+    if hyperplanes is not None:       
+        A_hyp = hyperplanes[:,:-1]
+        rhs_hyp = hyperplanes[:,-1]
+
+        A_all = np.vstack([A_pos,A_neg,A_hyp])
+        rhs_all = np.hstack([rhs,-rhs, rhs_hyp])
+    else:
+        A_all = np.vstack([A_pos,A_neg])
+        rhs_all = np.hstack([rhs,-rhs])
+
+
+    x, u = solve_simplex(A_all,rhs_all, logLevel)
+    otkl_pos = np.dot(A_pos,x) - rhs
+    otkl_neg = np.dot(A_neg,x) + rhs
+    otkl = np.hstack([otkl_pos, otkl_neg])
+  
+    task_pos = np.hstack([A_pos, rhs.reshape(-1,1), np.arange(len(A_pos)).reshape(-1,1), np.zeros(len(A_pos)).reshape(-1,1)])
+    task_neg = np.hstack([A_neg, -rhs.reshape(-1,1), np.arange(len(A_neg)).reshape(-1,1), np.ones(len(A_pos)).reshape(-1,1)])
+    task = np.vstack([task_pos, task_neg])
+    
+    print("nonzero cnst",np.count_nonzero(otkl), len(otkl))
+
+    sorted_task = task[otkl.argsort()]
+    worst_constraint = sorted_task[:len(task)//4, :]
+    worst_constraint_pos = worst_constraint[worst_constraint[:,-1] == 0,:-1]
+    worst_constraint_neg = worst_constraint[worst_constraint[:,-1] == 1,:-1]
+
+    ind = worst_constraint_pos[:,-1].astype(int)
+    worst_constraint_pos_added = A_neg[ind]
+
+    ind = worst_constraint_neg[:,-1].astype(int)
+    worst_constraint_neg_added = A_pos[ind]
+
+    worst_constraint = np.vstack([worst_constraint_pos[:,:-2], worst_constraint_pos_added,
+                                  worst_constraint_neg[:,:-2], worst_constraint_neg_added])
+
+    hyp_rhs = np.dot(np.dot(A_all,x),u)
+    hyp_a = np.dot(A_all.T, u)
+    hyp_cnst = np.hstack([hyp_a,[hyp_rhs]])
+    if hyperplanes is None:
+        hyperplanes = hyp_cnst.reshape(1,-1)
+    else:
+        hyperplanes = np.vstack([hyperplanes, hyp_cnst])
+
+    return x,u, worst_constraint, hyperplanes
+
         
 
-def solve_simplex(A, rhs, logLevel=1):
+def solve_simplex(A, rhs, logLevel=0):
     s = CyClpSimplex()
     s.logLevel = logLevel
     lp_dim = A.shape[1] 
 
+   
     x = s.addVariable('x', lp_dim)
     A = np.matrix(A)
     rhs = CyLPArray(rhs)
@@ -433,20 +454,16 @@ def solve_simplex(A, rhs, logLevel=1):
     nnz = np.count_nonzero(A)
     print (f"TASK SIZE XCOUNT: {lp_dim} GXCOUNT: {len(rhs)}")
 
-    print("START SIMPLEX")
-
-    
     s.primal()
     # outx = s.primalVariableSolution['x']
     k = list(s.primalConstraintSolution.keys())
     k2 =list(s.dualConstraintSolution.keys())
-    print("END SIMPLEX")
     q = s.dualConstraintSolution[k2[0]]
     if s.objectiveValue>10:
         np.savetxt("param.dat",A[:,-1],fmt="%.3f")
     print(f"{s.getStatusString()} objective: {s.objectiveValue}")
-    # print("nonzeros rhs:",np.count_nonzero(s.primalConstraintSolution[k[0]]))
-    # print("nonzeros dual:",np.count_nonzero(s.dualConstraintSolution[k2[0]]))
+    print("nonzeros rhs:",np.count_nonzero(s.primalConstraintSolution[k[0]]))
+    print("nonzeros dual:",np.count_nonzero(s.dualConstraintSolution[k2[0]]))
 
     return s.primalVariableSolution['x'], s.dualConstraintSolution[k2[0]]
 
@@ -457,27 +474,12 @@ np.set_printoptions(threshold=sys.maxsize)
 
 A = sc.vstack(monos)
 rhs = np.hstack(rhs)
-cff = np.hstack(cff).reshape(-1, 1)
-
+cff = np.hstack(cff).reshape(-1, 1)    
 A /= cff
-A1 = np.hstack([A, np.ones_like(cff)])
-A2 = np.hstack([-A, np.ones_like(cff)])
-A = np.vstack([A1,A2])
 
-rhs = np.hstack([rhs,-rhs])
-
-cnst_excludes = np.zeros(len(A))
 
 lp_dim = len(A[0])
 res = solve_simplex_splitted(A,rhs,16)
-otkl = np.dot(A,res)-rhs
-
-i = np.argmin(otkl)
-print("nonzero cnst",len(otkl[otkl < 0]), len(otkl))
-print(i,otkl[i], cnst_excludes[i])
-
-np.savetxt("cnst_excludes.dat",cnst_excludes, fmt = "%d")
-np.savetxt("otkl.dat",np.sort(otkl), fmt="%.3f")
 
 pc = sc.split(res[:-1],max_reg)
 np.savetxt("cerhe_cff", pc)
