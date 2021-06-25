@@ -3,13 +3,15 @@ import scipy as sc
 from scipy.sparse import csr_matrix
 from cylp.cy import CyClpSimplex
 from cylp.py.modeling.CyLPModel import CyLPArray
-
+from cylp.py.pivots import DantzigPivot
+from cylp.py.pivots import MostFrequentPivot
 from poly import mvmonos, powers
 
 from constants import *
 from gas_properties import TGZ, gas_coefficients
 from air_properties import TBZ, air_coefficients
 import ceramic_properties as cp
+
 
 import cProfile
 
@@ -155,60 +157,6 @@ def boundary_revert(ind1, bnd1, ind2, bnd2, *grid_base):
     return monos, rhs, cff
 
 
-def make_id(i,j):
-    return i*xreg + j
-
-def shifted(cffs,shift):
-    pcount = len(cffs)
-    psize = len(cffs[0])
-    lzeros = sc.zeros((pcount, psize * shift))
-    rzeros = sc.zeros((pcount, (max_reg - shift-1) * psize))
-    cffs = sc.hstack([lzeros,cffs,rzeros])
-    return cffs
-
-
-
-monos = []
-rhs = []
-cff = []
-for i in range(treg):
-    for j in range(xreg):
-        conditions = (gas_air(T_part[i], X_part[j], R[0]),
-                      ceramic_surface(T_part[i], X_part[j], R[0]),
-                      ceramic(T_part[i], X_part[j], R))
-
-        ind = make_id(i, j)
-        for m, r, c in conditions:
-            m = shifted(m, ind)
-            monos.append(m)
-            rhs.append(r)
-            cff.append(c)
-
-for i in range(treg):
-    m,r,c = boundary(TGZ,0, T_part[i],X_part[0][0],R[0])
-    ind = make_id(i, 0)
-    m = shifted(m, ind)
-    monos.append(m)
-    rhs.append(r)
-    cff.append(c)
-
-for i in range(treg):
-    m,r,c = boundary(TBZ, 2, T_part[i], X_part[xreg-1][-1], R[0])
-    ind = make_id(i, xreg-1)
-    m = shifted(m, ind)
-    monos.append(m)
-    rhs.append(r)
-    cff.append(c)
-
-
-for j in range(xreg):
-    ind1 = make_id(0, j)
-    ind2 = make_id(treg-1,j)
-    m,r,c = boundary_revert(ind1,T_part[0][0], ind2, T_part[treg - 1][-1], X_part[j],R)
-    monos.append(m)
-    rhs.append(r)
-    cff.append(c)
-
 def betw_blocks(pws, gind,dind, pind, R=None):
     i, j = gind
     di,dj = dind
@@ -273,26 +221,85 @@ def betw_blocks(pws, gind,dind, pind, R=None):
     return monos, rhs, cff
 
 
-conditions = []
-for i in range(treg - 1):
-    for j in range(xreg - 1):
-        #gas heat connect blocks
-        conditions.append(betw_blocks(powers(3, 2), (i, j),(1,1), 0))
-        #cer heat connect blocks
-        conditions.append(betw_blocks(powers(3, 3), (i, j),(1,1), 1, R))
-for i in range(1,treg):
-    for j in range(1, xreg):
-        #gas cooling connect blocks
-        conditions.append(betw_blocks(powers(3, 2), (i, j),(-1,-1), 2))
-        #cer cooling connect blocks
-        conditions.append(betw_blocks(powers(3, 3), (i, j),(-1,-1), 3, R))
+def make_id(i,j):
+    return i*xreg + j
 
-for m, r, c in conditions:
-    monos.append(m)
-    rhs.append(r)
-    cff.append(c)
+def shifted(cffs,shift):
+    pcount = len(cffs)
+    psize = len(cffs[0])
+    lzeros = sc.zeros((pcount, psize * shift))
+    rzeros = sc.zeros((pcount, (max_reg - shift-1) * psize))
+    cffs = sc.hstack([lzeros,cffs,rzeros])
+    return cffs
+
+def prepare(xreg,treg):
+
+    monos = []
+    rhs = []
+    cff = []
+    for i in range(treg):
+        for j in range(xreg):
+            conditions = (gas_air(T_part[i], X_part[j], R[0]),
+                          ceramic_surface(T_part[i], X_part[j], R[0]),
+                          ceramic(T_part[i], X_part[j], R))
+
+            ind = make_id(i, j)
+            for m, r, c in conditions:
+                m = shifted(m, ind)
+                monos.append(m)
+                rhs.append(r)
+                cff.append(c)
+
+    for i in range(treg):
+        m,r,c = boundary(TGZ,0, T_part[i],X_part[0][0],R[0])
+        ind = make_id(i, 0)
+        m = shifted(m, ind)
+        monos.append(m)
+        rhs.append(r)
+        cff.append(c)
+
+    for i in range(treg):
+        m,r,c = boundary(TBZ, 2, T_part[i], X_part[xreg-1][-1], R[0])
+        ind = make_id(i, xreg-1)
+        m = shifted(m, ind)
+        monos.append(m)
+        rhs.append(r)
+        cff.append(c)
 
 
+    for j in range(xreg):
+        ind1 = make_id(0, j)
+        ind2 = make_id(treg-1,j)
+        m,r,c = boundary_revert(ind1,T_part[0][0], ind2, T_part[treg - 1][-1], X_part[j],R)
+        monos.append(m)
+        rhs.append(r)
+        cff.append(c)
+
+    conditions = []
+    for i in range(treg - 1):
+        for j in range(xreg - 1):
+            #gas heat connect blocks
+            conditions.append(betw_blocks(powers(3, 2), (i, j),(1,1), 0))
+            #cer heat connect blocks
+            conditions.append(betw_blocks(powers(3, 3), (i, j),(1,1), 1, R))
+    for i in range(1,treg):
+        for j in range(1, xreg):
+            #gas cooling connect blocks
+            conditions.append(betw_blocks(powers(3, 2), (i, j),(-1,-1), 2))
+            #cer cooling connect blocks
+            conditions.append(betw_blocks(powers(3, 3), (i, j),(-1,-1), 3, R))
+
+    for m, r, c in conditions:
+        monos.append(m)
+        rhs.append(r)
+        cff.append(c)
+
+    A = sc.vstack(monos)
+    rhs = np.hstack(rhs)
+    cff = np.hstack(cff).reshape(-1, 1)    
+    A /= cff
+
+    return A, rhs
 
 
 def profile(func):
@@ -314,13 +321,16 @@ def solve_simplex_splitted(A,rhs, parts):
     tasks = np.array_split(base_task,parts)
     old_tasks = []
     state = 'f'
-    xs = []
     while len(tasks) > 1:
         new_tasks = []
         wc = []
         for i,task in enumerate(tasks):
+            print("#"*102)
+            print("#{:^100s}#".format("HEAP ITERATION {}".format(len(tasks))))
+            print("#"*102)
+
             x, u, wc, hyp = solve_simplex_hyperplanes(task,hyp,1)
-            xs.append((len(hyp)-1,x))
+         
             print(hyp.shape)
             if state == 'spf' or state == 'f':
                 new_tasks.append(wc)
@@ -332,49 +342,68 @@ def solve_simplex_splitted(A,rhs, parts):
         state = 'spf'       
         tasks = new_tasks
         old_tasks.append(tasks)
-        print("##########################",len(tasks))
+
+
+    print("#"*102)
+    print("#{:^100s}#".format("HEAP ITERATION {}".format(len(tasks))))
+    print("#"*102)
+
         
     task = tasks[0]
-    x, u, wc, hyp = solve_simplex_hyperplanes(task,hyp)
+    x, u, wc, hyp = solve_simplex_hyperplanes(task,hyp,1)
+    
+       
+    print("#"*102)
+    print("#{:^100s}#".format("HEAP SOLUTION FINISH"))
+    print("#"*102)
 
-   
-    return x
+    print(wc.shape)
+    
+    ones = np.ones(len(A)).reshape(-1,1)
+
+    A_pos = np.hstack([A, ones])
+    A_neg = np.hstack([-A, ones])
+
+    task_pos = np.hstack([A_pos[:,:-1], rhs.reshape(-1,1), np.arange(len(A_pos)).reshape(-1,1), np.zeros(len(A_pos)).reshape(-1,1)])
+    task_neg = np.hstack([A_neg[:,:-1], -rhs.reshape(-1,1), np.arange(len(A_neg)).reshape(-1,1), np.ones(len(A_pos)).reshape(-1,1)])
+    task = np.vstack([task_pos, task_neg])
 
     
-    print("######################### nonzero cnst",np.count_nonzero(cnst), len(cnst))
-    print("############################################ HEAP SOLUTION FINISH")
-
-    A_big = base_task[:,:-1]
-    rhs_big = base_task[:,-1]
-
     iteration = 0
     while iteration < 100:
-        cnst = np.dot(A_big,x) - rhs_big
-        sorted_task = base_task[cnst.argsort()]
-        worst_constraints_big = sorted_task[:2000, :]
-        i = np.argmin(cnst)
-        print("nonzero cnst",len(cnst[cnst < 0]), len(cnst))
-        print(i,cnst[i])
+        print("#"*102)
+        print ("#{:^100s}#".format("ITERATION {}".format(iteration)))
 
-        task = np.vstack([worst_constraint, worst_constraints_big, meta_task])
-        A = task[:,:-1]
-        rhs = task[:,-1]
-        print("add all unfulfilled constraints")
-        x,u = solve_simplex(A,rhs,logLevel=0)
+        otkl_pos = np.dot(A_pos,x) - rhs
+        otkl_neg = np.dot(A_neg,x) + rhs
+        otkl    = np.hstack([otkl_pos, otkl_neg])
+        sorted_task = task[otkl.argsort()]
+    
+        worst_constraint = sorted_task[:2000, :]
+        
+        worst_constraint_pos = worst_constraint[worst_constraint[:,-1] == 0,:-1]
+        worst_constraint_neg = worst_constraint[worst_constraint[:,-1] == 1,:-1]
+        print("wcn",worst_constraint_neg.shape)
+        print("wcp",worst_constraint_pos.shape)
 
-        cnst = np.dot(A,x) - rhs
-        # print (u*cnst)
-        np.savetxt(f"test_u_{iteration}",u)
-        np.savetxt(f"test_cnst_{iteration}",cnst)
-        print("nonzero cnst",np.count_nonzero(cnst), len(cnst))
-        sorted_task = task[cnst.argsort()]
-        worst_constraint = sorted_task[:700, :]
+        ind = worst_constraint_neg[:,-1].astype(int)
+        worst_constraint_neg_added = np.hstack([A_pos[ind,:-1],rhs[ind].reshape(-1,1)])
+        
+        worst_constraint_pos = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg_added])
 
-        meta_rhs = np.dot(np.dot(A,x),u)
-        meta_a = np.dot(A.T, u)
-        meta_cnst = np.hstack([meta_a,[meta_rhs]])
-        meta_task = np.vstack([meta_task, meta_cnst])
-        print("########################################################",meta_a[-1], meta_rhs)
+        wc_big = worst_constraint_pos        
+
+        i = np.argmin(otkl)
+        print("#{:^100s}#".format("nonzero otkl: {} / {}".format(len(otkl[otkl < 0]), len(otkl))))
+        print("#{:^100s}#".format("{} {}".format(i,otkl[i])))
+        print("#"*102)
+     
+        cur_task = np.vstack([wc,wc_big])
+        np.savetxt("task.dat",cur_task, fmt = "%.3f")
+
+        x,u,wc,hyp = solve_simplex_hyperplanes(cur_task,hyp,1)
+
+        #print(u)
 
         iteration += 1
     
@@ -392,33 +421,35 @@ def solve_simplex_hyperplanes(task, hyperplanes, logLevel=0):
     if hyperplanes is not None:       
         A_hyp = hyperplanes[:,:-1]
         rhs_hyp = hyperplanes[:,-1]
-
-        A_all = np.vstack([A_pos,A_neg,A_hyp])
-        rhs_all = np.hstack([rhs,-rhs, rhs_hyp])
+        print("Apos",A_pos.shape)
+        print("Ahyp",A_hyp.shape)
+        A_all = np.vstack([A_pos,A_neg])
+        rhs_all = np.hstack([rhs,-rhs])
+        # A_all = np.vstack([A_pos,A_neg,A_hyp])
+        # rhs_all = np.hstack([rhs,-rhs, rhs_hyp])
     else:
         A_all = np.vstack([A_pos,A_neg])
         rhs_all = np.hstack([rhs,-rhs])
-
 
     x, u = solve_simplex(A_all,rhs_all, logLevel)
     otkl_pos = np.dot(A_pos,x) - rhs
     otkl_neg = np.dot(A_neg,x) + rhs
     otkl = np.hstack([otkl_pos, otkl_neg])
   
-    task_pos = np.hstack([A_pos, rhs.reshape(-1,1), np.arange(len(A_pos)).reshape(-1,1), np.zeros(len(A_pos)).reshape(-1,1)])
-    task_neg = np.hstack([A_neg, -rhs.reshape(-1,1), np.arange(len(A_neg)).reshape(-1,1), np.ones(len(A_pos)).reshape(-1,1)])
+    task_pos = np.hstack([A_pos[:,:-1], rhs.reshape(-1,1), np.arange(len(A_pos)).reshape(-1,1), np.zeros(len(A_pos)).reshape(-1,1)])
+    task_neg = np.hstack([A_neg[:,:-1], -rhs.reshape(-1,1), np.arange(len(A_neg)).reshape(-1,1), np.ones(len(A_pos)).reshape(-1,1)])
     task = np.vstack([task_pos, task_neg])
     
-    print("nonzero cnst",np.count_nonzero(otkl), len(otkl))
-
     sorted_task = task[otkl.argsort()]
     worst_constraint = sorted_task[:len(task)//4, :]
     worst_constraint_pos = worst_constraint[worst_constraint[:,-1] == 0,:-1]
     worst_constraint_neg = worst_constraint[worst_constraint[:,-1] == 1,:-1]
 
     ind = worst_constraint_neg[:,-1].astype(int)
-    worst_constraint_neg_added = A_pos[ind]
-    worst_constraint_pos = np.vstack([worst_constraint_pos[:,:-2], worst_constraint_neg_added])
+    worst_constraint_neg_added = np.hstack([A_pos[ind,:-1],rhs[ind].reshape(-1,1)])
+    print("wcn+",worst_constraint_neg_added.shape)
+    print("wc",worst_constraint_pos.shape)
+    worst_constraint_pos = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg_added])
 
     worst_constraint = worst_constraint_pos
 
@@ -435,6 +466,9 @@ def solve_simplex_hyperplanes(task, hyperplanes, logLevel=0):
         hyperplanes = hyp_cnst.reshape(1,-1)
     else:
         hyperplanes = np.vstack([hyperplanes, hyp_cnst])
+
+    print("wc",worst_constraint.shape)
+    print("hyp",hyperplanes.shape)
 
     return x,u, worst_constraint, hyperplanes
 
@@ -464,26 +498,58 @@ def solve_simplex(A, rhs, logLevel=0):
     k = list(s.primalConstraintSolution.keys())
     k2 =list(s.dualConstraintSolution.keys())
     q = s.dualConstraintSolution[k2[0]]
-    if s.objectiveValue>10:
-        np.savetxt("param.dat",A[:,-1],fmt="%.3f")
     print(f"{s.getStatusString()} objective: {s.objectiveValue}")
     print("nonzeros rhs:",np.count_nonzero(s.primalConstraintSolution[k[0]]))
     print("nonzeros dual:",np.count_nonzero(s.dualConstraintSolution[k2[0]]))
 
     return s.primalVariableSolution['x'], s.dualConstraintSolution[k2[0]]
 
+def solve_simplex_big(A, rhs, logLevel=0):
+    ones = np.ones(len(A)).reshape(-1,1)
+    
+    A_pos = np.hstack([A, ones])
+    A_neg = np.hstack([-A, ones])
+
+    A = np.vstack([A_pos,A_neg])
+    rhs = np.hstack([rhs,-rhs])
+
+    s = CyClpSimplex()
+    s.logLevel = logLevel
+    lp_dim = A.shape[1] 
+
+   
+    x = s.addVariable('x', lp_dim)
+    A = np.matrix(A)
+    rhs = CyLPArray(rhs)
+
+    s += A * x >= rhs
+
+    s += x[lp_dim - 1] >= 0
+    # s += x[lp_dim - 1] <= TGZ
+    s.objective = x[lp_dim - 1]
+
+    nnz = np.count_nonzero(A)
+    print (f"TASK SIZE XCOUNT: {lp_dim} GXCOUNT: {len(rhs)}")
+    
+    s.initialPrimalSolve()
+    # outx = s.primalVariableSolution['x']
+    k = list(s.primalConstraintSolution.keys())
+    k2 =list(s.dualConstraintSolution.keys())
+    q = s.dualConstraintSolution[k2[0]]
+
+    print(f"{s.getStatusString()} objective: {s.objectiveValue}")
+    print("nonzeros rhs:",np.count_nonzero(s.primalConstraintSolution[k[0]]))
+    print("nonzeros dual:",np.count_nonzero(s.dualConstraintSolution[k2[0]]))
+
+    return s.primalVariableSolution['x']
 
 
 import sys
-#np.set_printoptions(threshold=sys.maxsize)
+np.set_printoptions(threshold=sys.maxsize)
 
-A = sc.vstack(monos)
-rhs = np.hstack(rhs)
-cff = np.hstack(cff).reshape(-1, 1)    
-A /= cff
+A, rhs = prepare(xreg, treg)
 
-
-lp_dim = len(A[0])
+print(A.shape)
 res = solve_simplex_splitted(A,rhs,16)
 
 pc = sc.split(res[:-1],max_reg)
