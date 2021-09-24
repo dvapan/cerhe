@@ -368,6 +368,7 @@ def solve_simplex_splitted(A,rhs, parts):
     task_neg = np.hstack([A_neg[:,:-1], -rhs.reshape(-1,1), np.arange(len(A_neg)).reshape(-1,1), np.ones(len(A_pos)).reshape(-1,1)])
     task = np.vstack([task_pos, task_neg])
 
+    wc_all = None
     
     iteration = 0
     while iteration < 100:
@@ -389,16 +390,21 @@ def solve_simplex_splitted(A,rhs, parts):
         ind = worst_constraint_neg[:,-1].astype(int)
         worst_constraint_neg_added = np.hstack([A_pos[ind,:-1],rhs[ind].reshape(-1,1)])
         
-        worst_constraint_pos = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg_added])
+        # worst_constraint_pos = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg_added])
 
-        wc_big = worst_constraint_pos        
+        wc_big = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg_added])
+
+        if wc_all is None:
+            wc_all = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg[:,:-1]])
+        else:
+            wc_all = np.vstack([wc_all, worst_constraint_pos[:,:-1], worst_constraint_neg[:,:-1]])
 
         i = np.argmin(otkl)
         print("#{:^100s}#".format("nonzero otkl: {} / {}".format(len(otkl[otkl < 0]), len(otkl))))
         print("#{:^100s}#".format("{} {}".format(i,otkl[i])))
         print("#"*102)
      
-        cur_task = np.vstack([wc,wc_big])
+        cur_task = np.vstack([wc,wc_all])
         np.savetxt("task.dat",cur_task, fmt = "%.3f")
 
         x,u,wc,hyp = solve_simplex_hyperplanes(cur_task,hyp,1)
