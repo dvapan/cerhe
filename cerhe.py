@@ -1,562 +1,136 @@
+import logging
 import numpy as np
-import scipy as sc
-from scipy.sparse import csr_matrix
-from cylp.cy import CyClpSimplex
-from cylp.py.modeling.CyLPModel import CyLPArray
-from cylp.py.pivots import DantzigPivot
-from cylp.py.pivots import MostFrequentPivot
+from model import count_points 
+from model import nodes,make_id
+from model import ppwrs2,ppwrs3,psize2,psize3,cff_cnt,mvmonoss
 from poly import mvmonos, powers
 
+import solvers.simplex as simplex
+import solvers.solve_constractions_cone as constr_cone
+import solvers.iterate_simplex as iterate_simplex
+
 from constants import *
-from gas_properties import TGZ, gas_coefficients
-from air_properties import TBZ, air_coefficients
-import ceramic_properties as cp
 
+def count(params, eps=0.01):
+    itcnt = 0
+    outx = None
+    pprx = params["pprx"]
+    pprt = params["pprt"]
+    xreg = params["xreg"]
+    treg = params["treg"] 
+    is_run = True
+    totalx = xreg*pprx - xreg + 1
+    totalt = treg*pprt - treg + 1
+    X = np.linspace(0, length, totalx)
+    T = np.linspace(0, total_time, totalt)
+    R = np.linspace(0.01*rball, rball, 10)
+    R = R[::-1]
+    X_part = list(mit.windowed(X,n=pprx,step=pprx - 1))
+    T_part = list(mit.windowed(T,n=pprt,step=pprt - 1))
+    lxreg = X_part[0][-1] - X_part[0][0]
+    ltreg = T_part[0][-1] - T_part[0][0]
+    bsize = sum(cff_cnt)
+    outx_old = None
+    outx = None 
+    cff = None
+    cff_old = None
+    is_refin = True
+    task_old = None
+    while is_run  or itcnt == 0:
+        itcnt += 1
+        logging.info(f"ITER: {itcnt}")
+        stime = time.time()
+        sdcf = None
+        refit = 0
+        monos, rhs, ct, = count_points(params)
+        ct = np.hstack([ct,ct])
+        if cff_old is None:
+            cff_old = np.copy(cff)
+        ones = np.ones((len(monos),1))
 
-import cProfile
+        A1 = np.hstack([monos, ones])
+        A2 = np.hstack([-monos, ones])
+        task_A = np.vstack([A1,A2])
 
-from collections import namedtuple
-
-def mvmonoss(x, powers, shift_ind, cff_cnt, diff=None):
-    lzeros = sum((cff_cnt[i] for i in range(shift_ind)))
-    rzeros = sum((cff_cnt[i] for i in range(shift_ind + 1, len(cff_cnt))))
-    monos = mvmonos(x, powers, diff)
-    lzeros = np.zeros((len(x), lzeros))
-    rzeros = np.zeros((len(x), rzeros))
-    return np.hstack([lzeros, monos, rzeros])
-
-
-def nodes(*grid_base):
-    """
-    Make list of nodes from given space of points
-    """
-    grid = np.meshgrid(*grid_base)
-    grid_flat = map(lambda x: x.flatten(), grid)
-    return np.vstack(list(grid_flat)).T
-
-
-t_def = 1000
-cff_cnt = [10, 20, 10, 20]
-
-
-def ceramic(*grid_base, df=None):
-    """ Ceramic to ceramic heat transfer
-    """
-    in_pts_cr = nodes(*grid_base)
-
-    dtchdt = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt, [1, 0, 0])
-    dtchdr = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt, [0, 0, 1])
-    dtchdr2 = mvmonoss(in_pts_cr, powers(3, 3), 1, cff_cnt, [0, 0, 2])
-    radius = in_pts_cr[:, -1].reshape(-1, 1)
-    a = cp.a(t_def)
-    monos_cerh = dtchdt - a * (dtchdr2 + 2 / radius * dtchdr)
-
-    dtccdt = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [1, 0, 0])
-    dtccdr = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [0, 0, 1])
-    dtccdr2 = mvmonoss(in_pts_cr, powers(3, 3), 3, cff_cnt, [0, 0, 2])
-    a = cp.a(t_def)
-    monos_cerc = dtccdt - a * (dtccdr2 + 2 / radius * dtccdr)
-
-    monos = np.vstack([monos_cerh, monos_cerc])
-    rhs = np.full(len(monos), 0)
-    cff = np.full(len(monos), 0.001)
-    return monos, rhs, cff
-
-
-def gas_air(*grid_base):
-    """
-    Gas to gas transfer
-    """
-    in_pts_gs = nodes(*grid_base)
-    tgh = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 0, cff_cnt)
-    dtghdt = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 0, cff_cnt, [1, 0])
-    dtghdx = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 0, cff_cnt, [0, 1])
-    tch = mvmonoss(in_pts_gs, powers(3, 3), 1, cff_cnt)
-    ALF, PO, CG, WG = gas_coefficients(t_def)
-    lb = (tgh - tch) * ALF * surf_spec
-    rb = PO * fgib * CG * (dtghdx * WG + dtghdt)
-    monos_gash = lb + rb
-
-    tgc = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 2, cff_cnt)
-    dtgcdt = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 2, cff_cnt, [1, 0])
-    dtgcdx = mvmonoss(in_pts_gs[:, :-1], powers(3, 2), 2, cff_cnt, [0, 1])
-    tcc = mvmonoss(in_pts_gs, powers(3, 3), 3, cff_cnt)
-    ALF, PO, CG, WG = air_coefficients(t_def)
-    lb = (tgc - tcc) * ALF * surf_spec
-    rb = PO * fgib * CG * (dtgcdx * WG + dtgcdt)
-    monos_gasc = lb - rb
-
-    monos = np.vstack([monos_gash, monos_gasc])
-    rhs = np.full(len(monos), 0)
-    cff = np.full(len(monos), 10)
-    return monos, rhs, cff
-
-
-def ceramic_surface(*grid_base):
-    """
-    Transfer Heat from gas or air to ceramic surface
-    """
-    in_pts = nodes(*grid_base)
-
-    tch = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt)
-    tgh = mvmonoss(in_pts[:, :-1], powers(3, 2), 0, cff_cnt)
-    dtchdr = mvmonoss(in_pts, powers(3, 3), 1, cff_cnt, [0, 0, 1])
-    ALF, _, _, _ = gas_coefficients(t_def)
-    LAM = cp.lam(t_def)
-    lbalance = (tgh - tch) * ALF
-    rbalance = LAM * dtchdr
-    monos_surfh = lbalance - rbalance
-
-    tcc = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt)
-    tgc = mvmonoss(in_pts[:, :-1], powers(3, 2), 2, cff_cnt)
-    dtccdr = mvmonoss(in_pts, powers(3, 3), 3, cff_cnt, [0, 0, 1])
-    ALF, _, _, _ = air_coefficients(t_def)
-    LAM = cp.lam(t_def)
-    lbalance = (tgc - tcc) * ALF
-    rbalance = LAM * dtccdr
-    monos_surfc = lbalance - rbalance
-
-    monos = np.vstack([monos_surfh, monos_surfc])
-    rhs = np.full(len(monos), 0)
-    cff = np.full(len(monos), 0.001)
-    return monos, rhs, cff
-
-
-def boundary(val, ind, *grid_base):
-    """
-    Boundary points for start gas supply from left side of Heat Exchanger
-    """
-    sb_pts_x0 = nodes(*grid_base)
-    monos = mvmonoss(sb_pts_x0[:, :-1], powers(3, 2), ind, cff_cnt)
-    rhs = np.full(len(monos), val)
-    cff = np.full(len(monos), 1)
-    return monos, rhs, cff
-
-
-def boundary_revert(ind1, bnd1, ind2, bnd2, *grid_base):
-    """
-    Boundary points for ceramic rever
-    """
-    sb_pts_t0 = nodes(bnd1, *grid_base)
-    sb_pts_t1 = nodes(bnd2, *grid_base)
-
-    tch = mvmonoss(sb_pts_t0, powers(3, 3), 1, cff_cnt)
-    tch = shifted(tch, ind1)
-    tcc = mvmonoss(sb_pts_t1, powers(3, 3), 3, cff_cnt)
-    tcc = shifted(tcc, ind2)
-    revtc1 = tch - tcc
-    tcc = mvmonoss(sb_pts_t0, powers(3, 3), 3, cff_cnt)
-    tcc = shifted(tcc, ind1)
-    tch = mvmonoss(sb_pts_t1, powers(3, 3), 1, cff_cnt)
-    tch = shifted(tch, ind2)
-    revtc2 = tcc - tch
-
-    monos = np.vstack([revtc1, revtc2])
-    rhs = np.full(len(monos), 0)
-    cff = np.full(len(monos), 1)
-    return monos, rhs, cff
-
-
-def betw_blocks(pws, gind,dind, pind, R=None):
-    i, j = gind
-    di,dj = dind
-    if di > 0:
-        Ti1 = -1
-        Ti2 = 0
-    else:
-        Ti1 = 0
-        Ti2 = -1
-    ind = make_id(i, j)
-    if R is None:
-        grid_base = T_part[i][Ti1], X_part[j]
-    else:
-        grid_base = T_part[i][Ti1], X_part[j],R
-    ptr_bnd = nodes(*grid_base)
-    val = mvmonoss(ptr_bnd, pws, pind, cff_cnt)
-    val = shifted(val, ind)
-
-    ni, nj = i+di, j
-    indn = make_id(ni, nj)
-    if R is None:
-        grid_basen = T_part[ni][Ti2], X_part[nj]
-    else:
-        grid_basen = T_part[ni][Ti2], X_part[nj], R
-    ptr_bndn = nodes(*grid_basen)
-    valn = mvmonoss(ptr_bndn, pws, pind, cff_cnt)
-    valn = shifted(valn, indn)
-
-    monos = []
-
-    monos.append(valn - val)
-
-    if dj > 0:
-        Tj1 = -1
-        Tj2 = 0
-    else:
-        Tj1 = 0
-        Tj2 = -1
-    if R is None:
-        grid_base = T_part[i], X_part[j][Tj1]
-    else:
-        grid_base = T_part[i], X_part[j][Tj1],R
-    ptr_bnd = nodes(*grid_base)
-    val = mvmonoss(ptr_bnd, pws, pind, cff_cnt)
-    val = shifted(val, ind)
-
-    ni, nj = i, j+dj
-    indn = make_id(ni, nj)
-    if R is None:
-        grid_basen = T_part[ni], X_part[nj][Tj2]
-    else:
-        grid_basen = T_part[ni], X_part[nj][Tj2], R
-
-    ptr_bndn = nodes(*grid_basen)
-    valn = mvmonoss(ptr_bndn, pws, pind, cff_cnt)
-    valn = shifted(valn, indn)
-
-    monos.append(valn - val)
-    monos = np.vstack(monos)
-    rhs = np.full(len(monos), 0)
-    cff = np.full(len(monos), 1)
-    return monos, rhs, cff
-
-
-def make_id(i,j):
-    return i*xreg + j
-
-def shifted(cffs,shift):
-    pcount = len(cffs)
-    psize = len(cffs[0])
-    lzeros = sc.zeros((pcount, psize * shift))
-    rzeros = sc.zeros((pcount, (max_reg - shift-1) * psize))
-    cffs = sc.hstack([lzeros,cffs,rzeros])
-    return cffs
-
-def prepare(xreg,treg):
-
-    monos = []
-    rhs = []
-    cff = []
-    for i in range(treg):
-        for j in range(xreg):
-            conditions = (gas_air(T_part[i], X_part[j], R[0]),
-                          ceramic_surface(T_part[i], X_part[j], R[0]),
-                          ceramic(T_part[i], X_part[j], R))
-
-            ind = make_id(i, j)
-            for m, r, c in conditions:
-                m = shifted(m, ind)
-                monos.append(m)
-                rhs.append(r)
-                cff.append(c)
-
-    for i in range(treg):
-        m,r,c = boundary(TGZ,0, T_part[i],X_part[0][0],R[0])
-        ind = make_id(i, 0)
-        m = shifted(m, ind)
-        monos.append(m)
-        rhs.append(r)
-        cff.append(c)
-
-    for i in range(treg):
-        m,r,c = boundary(TBZ, 2, T_part[i], X_part[xreg-1][-1], R[0])
-        ind = make_id(i, xreg-1)
-        m = shifted(m, ind)
-        monos.append(m)
-        rhs.append(r)
-        cff.append(c)
-
-
-    for j in range(xreg):
-        ind1 = make_id(0, j)
-        ind2 = make_id(treg-1,j)
-        m,r,c = boundary_revert(ind1,T_part[0][0], ind2, T_part[treg - 1][-1], X_part[j],R)
-        monos.append(m)
-        rhs.append(r)
-        cff.append(c)
-
-    conditions = []
-    for i in range(treg - 1):
-        for j in range(xreg - 1):
-            #gas heat connect blocks
-            conditions.append(betw_blocks(powers(3, 2), (i, j),(1,1), 0))
-            #cer heat connect blocks
-            conditions.append(betw_blocks(powers(3, 3), (i, j),(1,1), 1, R))
-    for i in range(1,treg):
-        for j in range(1, xreg):
-            #gas cooling connect blocks
-            conditions.append(betw_blocks(powers(3, 2), (i, j),(-1,-1), 2))
-            #cer cooling connect blocks
-            conditions.append(betw_blocks(powers(3, 3), (i, j),(-1,-1), 3, R))
-
-    for m, r, c in conditions:
-        monos.append(m)
-        rhs.append(r)
-        cff.append(c)
-
-    A = sc.vstack(monos)
-    rhs = np.hstack(rhs)
-    cff = np.hstack(cff).reshape(-1, 1)    
-    A /= cff
-
-    return A, rhs
-
-
-def profile(func):
-    """Decorator for run function profile"""
-    def wrapper(*args, **kwargs):
-        profile_filename = func.__name__ + '.prof'
-        profiler = cProfile.Profile()
-        result = profiler.runcall(func, *args, **kwargs)
-        profiler.dump_stats(profile_filename)
-        return result
-    return wrapper
-
-
-def solve_simplex_splitted(A,rhs, parts):
-    import numpy.random
-    base_task = np.hstack([A,rhs.reshape(-1, 1)])
-    hyp = None
-    np.random.shuffle(base_task)
-    tasks = np.array_split(base_task,parts)
-    old_tasks = []
-    state = 'f'
-    while len(tasks) > 1:
-        new_tasks = []
-        wc = []
-        for i,task in enumerate(tasks):
-            print("#"*102)
-            print("#{:^100s}#".format("HEAP ITERATION {}".format(len(tasks))))
-            print("#"*102)
-
-            x, u, wc, hyp = solve_simplex_hyperplanes(task,hyp,1)
-         
-            print(hyp.shape)
-            if state == 'spf' or state == 'f':
-                new_tasks.append(wc)
-                state = 'sps'
-            elif state == 'sps':
-                new_tasks[-1] = np.vstack(
-                    [new_tasks[-1], wc])
-                state = 'spf'
-        state = 'spf'       
-        tasks = new_tasks
-        old_tasks.append(tasks)
-
-
-    print("#"*102)
-    print("#{:^100s}#".format("HEAP ITERATION {}".format(len(tasks))))
-    print("#"*102)
-
+        task_rhs = np.hstack([rhs,-rhs])
+        print(np.max(task_A),np.min(task_A))
+        print((f"TASK SIZE XCOUNT: {task_A.shape[1]} " 
+                      f"GXCOUNT: {task_A.shape[0]}"))
+        outx = simplex.solve(task_A, task_rhs, ct=ct, 
+                logLevel=1,outx=outx)
         
-    task = tasks[0]
-    x, u, wc, hyp = solve_simplex_hyperplanes(task,hyp,1)
-    
-       
-    print("#"*102)
-    print("#{:^100s}#".format("HEAP SOLUTION FINISH"))
-    print("#"*102)
+#        opt = test(params, outx, itcnt)
 
-    print(wc.shape)
-    
-    ones = np.ones(len(A)).reshape(-1,1)
-
-    A_pos = np.hstack([A, ones])
-    A_neg = np.hstack([-A, ones])
-
-    task_pos = np.hstack([A_pos[:,:-1], rhs.reshape(-1,1), np.arange(len(A_pos)).reshape(-1,1), np.zeros(len(A_pos)).reshape(-1,1)])
-    task_neg = np.hstack([A_neg[:,:-1], -rhs.reshape(-1,1), np.arange(len(A_neg)).reshape(-1,1), np.ones(len(A_pos)).reshape(-1,1)])
-    task = np.vstack([task_pos, task_neg])
-
-    wc_all = None
-    
-    iteration = 0
-    while iteration < 100:
-        print("#"*102)
-        print ("#{:^100s}#".format("ITERATION {}".format(iteration)))
-
-        otkl_pos = np.dot(A_pos,x) - rhs
-        otkl_neg = np.dot(A_neg,x) + rhs
-        otkl    = np.hstack([otkl_pos, otkl_neg])
-        sorted_task = task[otkl.argsort()]
-    
-        worst_constraint = sorted_task[:2000, :]
+        np.savetxt(f"xdata_{itcnt}.dat", outx)
         
-        worst_constraint_pos = worst_constraint[worst_constraint[:,-1] == 0,:-1]
-        worst_constraint_neg = worst_constraint[worst_constraint[:,-1] == 1,:-1]
-        print("wcn",worst_constraint_neg.shape)
-        print("wcp",worst_constraint_pos.shape)
-
-        ind = worst_constraint_neg[:,-1].astype(int)
-        worst_constraint_neg_added = np.hstack([A_pos[ind,:-1],rhs[ind].reshape(-1,1)])
-        
-        # worst_constraint_pos = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg_added])
-
-        wc_big = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg_added])
-
-        if wc_all is None:
-            wc_all = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg[:,:-1]])
+        exit()
+        v_lst = []
+        p_lst = []
+        for i in range(treg):
+            for j in range(xreg):
+                ind = make_id(i, j, params)
+                pts = nodes(T_part[i],X_part[j])
+                cf = outx[ind*bsize:(ind+1)*bsize]
+                tv = mvmonoss(pts, ppwrs, 1, cff_cnt, [0, 0])
+                tp = mvmonoss(pts, ppwrs, 0, cff_cnt, [0, 0])
+                ttv = tv.dot(cf)
+                ttp = tp.dot(cf)
+                v_lst.append(ttv)
+                p_lst.append(ttp)
+        v = np.hstack(v_lst)
+        p = np.hstack(p_lst)
+        ind = 0
+        if v_0 is None:
+            vu= v*a
+            #vu= v
+            delta_v = abs(vu)
+            ind = np.argmax(delta_v)
+            logging.info(f"delta_v[{ind}]: {delta_v[ind]}")
+            logging.info(f"delta_v avg: {np.average(delta_v)}")
+            v_0 = vu
         else:
-            wc_all = np.vstack([wc_all, worst_constraint_pos[:,:-1], worst_constraint_neg[:,:-1]])
-
-        i = np.argmin(otkl)
-        print("#{:^100s}#".format("nonzero otkl: {} / {}".format(len(otkl[otkl < 0]), len(otkl))))
-        print("#{:^100s}#".format("{} {}".format(i,otkl[i])))
-        print("#"*102)
-     
-        cur_task = np.vstack([wc,wc_all])
-        np.savetxt("task.dat",cur_task, fmt = "%.3f")
-
-        x,u,wc,hyp = solve_simplex_hyperplanes(cur_task,hyp,1)
-
-        #print(u)
-
-        iteration += 1
-    
-    return x
-
-def solve_simplex_hyperplanes(task, hyperplanes, logLevel=0):
-    
-    A = task[:,:-1]
-    rhs = task[:,-1]
-
-    ones = np.ones(len(A)).reshape(-1,1)
-    
-    A_pos = np.hstack([A, ones])
-    A_neg = np.hstack([-A, ones])
-    if hyperplanes is not None:       
-        A_hyp = hyperplanes[:,:-1]
-        rhs_hyp = hyperplanes[:,-1]
-        print("Apos",A_pos.shape)
-        print("Ahyp",A_hyp.shape)
-        A_all = np.vstack([A_pos,A_neg])
-        rhs_all = np.hstack([rhs,-rhs])
-        # A_all = np.vstack([A_pos,A_neg,A_hyp])
-        # rhs_all = np.hstack([rhs,-rhs, rhs_hyp])
-    else:
-        A_all = np.vstack([A_pos,A_neg])
-        rhs_all = np.hstack([rhs,-rhs])
-
-    x, u = solve_simplex(A_all,rhs_all, logLevel)
-    otkl_pos = np.dot(A_pos,x) - rhs
-    otkl_neg = np.dot(A_neg,x) + rhs
-    otkl = np.hstack([otkl_pos, otkl_neg])
-  
-    task_pos = np.hstack([A_pos[:,:-1], rhs.reshape(-1,1), np.arange(len(A_pos)).reshape(-1,1), np.zeros(len(A_pos)).reshape(-1,1)])
-    task_neg = np.hstack([A_neg[:,:-1], -rhs.reshape(-1,1), np.arange(len(A_neg)).reshape(-1,1), np.ones(len(A_pos)).reshape(-1,1)])
-    task = np.vstack([task_pos, task_neg])
-    
-    sorted_task = task[otkl.argsort()]
-    worst_constraint = sorted_task[:len(task)//4, :]
-    worst_constraint_pos = worst_constraint[worst_constraint[:,-1] == 0,:-1]
-    worst_constraint_neg = worst_constraint[worst_constraint[:,-1] == 1,:-1]
-
-    ind = worst_constraint_neg[:,-1].astype(int)
-    worst_constraint_neg_added = np.hstack([A_pos[ind,:-1],rhs[ind].reshape(-1,1)])
-    print("wcn+",worst_constraint_neg_added.shape)
-    print("wc",worst_constraint_pos.shape)
-    worst_constraint_pos = np.vstack([worst_constraint_pos[:,:-1], worst_constraint_neg_added])
-
-    worst_constraint = worst_constraint_pos
-
-    # ind = worst_constraint_neg[:,-1].astype(int)
-    # worst_constraint_neg_added = A_pos[ind]
-
-    # worst_constraint = np.vstack([worst_constraint_pos[:,:-2], worst_constraint_pos_added,
-    #                               worst_constraint_neg[:,:-2], worst_constraint_neg_added])
-
-    hyp_rhs = np.dot(np.dot(A_all,x),u)
-    hyp_a = np.dot(A_all.T, u)
-    hyp_cnst = np.hstack([hyp_a,[hyp_rhs]])
-    if hyperplanes is None:
-        hyperplanes = hyp_cnst.reshape(1,-1)
-    else:
-        hyperplanes = np.vstack([hyperplanes, hyp_cnst])
-
-    print("wc",worst_constraint.shape)
-    print("hyp",hyperplanes.shape)
-
-    return x,u, worst_constraint, hyperplanes
-
+            delta_v = abs(v-v_0)
+            vu = (v-v0)*a+v
+            #vu = v
+            ind = np.argmax(delta_v)
+            is_run = delta_v[ind] > accs["v"]
+            logging.info(f"delta_v[{ind}]: {delta_v[ind]}")
+            logging.info(f"delta_v avg: {np.average(delta_v)}")
+            v_0 = vu
+        logging.info(f"current a: {a}")
+        logging.debug(f"max_v: {np.max(v_0)} | {np.max(v)}")
+        logging.debug(f"min_v: {np.min(v_0)} | {np.min(v)}")
+        logging.debug(f"max_p: {np.max(p)}")
+        logging.debug(f"min_p: {np.min(p)}")
         
+        f = open('dv.txt','a')
+        f.write(f"{itcnt} {outx[-1]} {delta_v[ind]}\n")
+        f.close()
 
-def solve_simplex(A, rhs, logLevel=0):
-    s = CyClpSimplex()
-    s.logLevel = logLevel
-    lp_dim = A.shape[1] 
+        t = time.time() - stime
+        logging.debug("iter time {} seconds".format(t) )
+    np.savetxt(f"xdata.txt", outx)
 
-   
-    x = s.addVariable('x', lp_dim)
-    A = np.matrix(A)
-    rhs = CyLPArray(rhs)
+if __name__ == "__main__":
+    import time
+    import argparse
+    import sys
+    np.set_printoptions(threshold=sys.maxsize)
+    logging.basicConfig(filename="cpm.log",
+            level=logging.DEBUG,
+            format='%(asctime)s %(message)s', 
+            datefmt='%Y-%m-%d %H-%M-%S')
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--xreg", default=1,type=int)
+    parser.add_argument("--treg", default=1,type=int)
+    parser.add_argument("--pprx", default=7,type=int)
+    parser.add_argument("--pprt", default=7,type=int)
+    args = parser.parse_args(sys.argv[1:])
+    params = vars(args)
 
-    s += A * x >= rhs
-
-    s += x[lp_dim - 1] >= 0
-    # s += x[lp_dim - 1] <= TGZ
-    s.objective = x[lp_dim - 1]
-
-    nnz = np.count_nonzero(A)
-    print (f"TASK SIZE XCOUNT: {lp_dim} GXCOUNT: {len(rhs)}")
-
-    s.primal()
-    # outx = s.primalVariableSolution['x']
-    k = list(s.primalConstraintSolution.keys())
-    k2 =list(s.dualConstraintSolution.keys())
-    q = s.dualConstraintSolution[k2[0]]
-    print(f"{s.getStatusString()} objective: {s.objectiveValue}")
-    print("nonzeros rhs:",np.count_nonzero(s.primalConstraintSolution[k[0]]))
-    print("nonzeros dual:",np.count_nonzero(s.dualConstraintSolution[k2[0]]))
-
-    return s.primalVariableSolution['x'], s.dualConstraintSolution[k2[0]]
-
-def solve_simplex_big(A, rhs, logLevel=0):
-    ones = np.ones(len(A)).reshape(-1,1)
-    
-    A_pos = np.hstack([A, ones])
-    A_neg = np.hstack([-A, ones])
-
-    A = np.vstack([A_pos,A_neg])
-    rhs = np.hstack([rhs,-rhs])
-
-    s = CyClpSimplex()
-    s.logLevel = logLevel
-    lp_dim = A.shape[1] 
-
-   
-    x = s.addVariable('x', lp_dim)
-    A = np.matrix(A)
-    rhs = CyLPArray(rhs)
-
-    s += A * x >= rhs
-
-    s += x[lp_dim - 1] >= 0
-    # s += x[lp_dim - 1] <= TGZ
-    s.objective = x[lp_dim - 1]
-
-    nnz = np.count_nonzero(A)
-    print (f"TASK SIZE XCOUNT: {lp_dim} GXCOUNT: {len(rhs)}")
-    
-    s.initialPrimalSolve()
-    # outx = s.primalVariableSolution['x']
-    k = list(s.primalConstraintSolution.keys())
-    k2 =list(s.dualConstraintSolution.keys())
-    q = s.dualConstraintSolution[k2[0]]
-
-    print(f"{s.getStatusString()} objective: {s.objectiveValue}")
-    print("nonzeros rhs:",np.count_nonzero(s.primalConstraintSolution[k[0]]))
-    print("nonzeros dual:",np.count_nonzero(s.dualConstraintSolution[k2[0]]))
-
-    return s.primalVariableSolution['x']
-
-
-import sys
-np.set_printoptions(threshold=sys.maxsize)
-
-A, rhs = prepare(xreg, treg)
-
-print(A.shape)
-res = solve_simplex_splitted(A,rhs,16)
-
-pc = sc.split(res[:-1],max_reg)
-np.savetxt("cerhe_cff", pc)
+    logging.info("*"*40)
+    logging.info("START")
+    stime = time.time()
+    count(params)
+    t = time.time() - stime
+    logging.debug("total time {} seconds".format(t) )
