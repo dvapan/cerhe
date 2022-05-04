@@ -367,7 +367,7 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
 
 
     for i in range(treg):
-        ind = make_id(i, xreg-1, params)
+        ind = make_id(i, 0, params)
         lm,rm,r,c,t = boundary_val(TGZ,accs["temp"], ppwrs2, 0,
                 T_part[i],X_part[0][0])
         lm = sps.csr_matrix(shifted(lm, ind, params))
@@ -378,8 +378,8 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
         cff.append(c)
         cnst_type.append([f"{q}-{xreg - 1}x{i}-gaz-bound" for q in t])
 
-    for j in range(xreg):
-        ind = make_id(0, j, params)
+    for i in range(treg):
+        ind = make_id(i, xreg-1, params)
         lm,rm,r,c,t = boundary_val(TBZ,accs["temp"], ppwrs2, 2,
                 T_part[i], X_part[xreg-1][-1])
         lm = sps.csr_matrix(shifted(lm, ind, params))

@@ -8,17 +8,25 @@ import sys
 from poly import mvmonos, powers
 from constants import *
 import matplotlib.pyplot as plt
-from model import make_id, psize
+from model import make_id, cff_cnt, ppwrs2, ppwrs3, psize2, psize3
+from gas_properties import TGZ
+from air_properties import TBZ
 
 def get_pv(pc, in_pts,params):
     ids = in_pts // np.array([ltreg,lxreg])
     pids = np.apply_along_axis(lambda x: int(make_id(*x,params)),1,ids)
     cf = pc[pids]
-    p_cf,v_cf = np.hsplit(cf, 2)
-    p = mvmonos(in_pts, ppwrs, [0, 0])
-    up = np.sum(p*p_cf, axis=1)
-    uv = np.sum(p*v_cf, axis=1)
-    return up,uv
+    ht,cl = np.hsplit(cf,2)
+    tgh,tch = ht[:,:psize2],ht[:,psize2:]
+    tgc,tcc = cl[:,:psize2],ht[:,psize2:]
+    p2 = mvmonos(in_pts, ppwrs2, [0, 0])
+    #p3 = mvmonos(in_pts, ppwrs3, [0, 0, 0])
+    utgh = np.sum(p2*tgh,axis=1)
+    #utch = np.sum(p3*tch,axis=1)
+    utgc = np.sum(p2*tgc,axis=1)
+    #utcc = np.sum(p3*tcc,axis=1)
+    #return utgh,utch,utgc,utcc
+    return utgh,None,utgc,None
 
 parser = argparse.ArgumentParser()
 parser.add_argument("filenames", nargs='*')
@@ -54,32 +62,26 @@ for filename in args.filenames:
     pc = np.loadtxt(filename)
     print("Polynom approximate with: {}".format(pc[-1]))
     pc = pc[:-1]
-    pc = pc.reshape(-1,psize*2)
+    pc = pc.reshape(-1,sum(cff_cnt))
     pcs.append(pc)
 
-ppwrs = powers(max_poly_degree, 2)
-psize = len(ppwrs)
 
-cff_cnt = [psize,psize]
-
-X = np.arange(0, length)
+X = np.arange(0, length, 0.01)
 T = np.array([0])
+R = np.linspace(0.01*rball, rball, 10)
+R = R[::-1]
 
-fig, axs = plt.subplots(2)
+fig, axs = plt.subplots(1)
 plt.subplots_adjust(left=0.1, bottom=0.25)
 
 tt,xx = np.meshgrid(T,X)
 in_pts = np.vstack([tt.flatten(),xx.flatten()]).T
-lp = []
-lv = []
+lt = []
 for pc in pcs:
-    up,uv = get_pv(pc,in_pts,p)
-    l1, = axs[0].plot(X, up, lw=2)
-    l2, = axs[1].plot(X, uv, lw=2)
-    lp.append(l1)
-    lv.append(l2)
-axs[0].axis([0, length, p0*psclm, p0*psclp])
-axs[1].axis([0, length, -vscl*v0, vscl*v0])
+    tgh,tch,tgc,tcc = get_pv(pc,in_pts,p)
+    l1, = axs.plot(X, tgc, lw=2)
+    lt.append(l1)
+axs.axis([0, length, TBZ, TGZ])
 
 axcolor = 'lightgoldenrodyellow'
 axtime = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor=axcolor)
@@ -93,12 +95,10 @@ def update(val):
 
     tt,xx = np.meshgrid(T,X)
     in_pts = np.vstack([tt.flatten(),xx.flatten()]).T
-    tt,xx = np.meshgrid(T,X)
-    in_pts = np.vstack([tt.flatten(),xx.flatten()]).T
     for i,pc in enumerate(pcs):
-        up,uv = get_pv(pc,in_pts,p) 
-        lp[i].set_ydata(up)
-        lv[i].set_ydata(uv)
+        tgh,tch,tgc,tcc = get_pv(pc,in_pts,p)
+        print (tgh)
+        lt[i].set_ydata(tgh)
     fig.canvas.draw_idle()
 stime.on_changed(update)
 
