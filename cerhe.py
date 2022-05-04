@@ -59,53 +59,53 @@ def count(params, eps=0.01):
         outx = simplex.solve(task_A, task_rhs, ct=ct, 
                 logLevel=1,outx=outx)
         
+        is_run = False
 #        opt = test(params, outx, itcnt)
 
         np.savetxt(f"xdata_{itcnt}.dat", outx)
         
-        exit()
-        v_lst = []
-        p_lst = []
-        for i in range(treg):
-            for j in range(xreg):
-                ind = make_id(i, j, params)
-                pts = nodes(T_part[i],X_part[j])
-                cf = outx[ind*bsize:(ind+1)*bsize]
-                tv = mvmonoss(pts, ppwrs, 1, cff_cnt, [0, 0])
-                tp = mvmonoss(pts, ppwrs, 0, cff_cnt, [0, 0])
-                ttv = tv.dot(cf)
-                ttp = tp.dot(cf)
-                v_lst.append(ttv)
-                p_lst.append(ttp)
-        v = np.hstack(v_lst)
-        p = np.hstack(p_lst)
-        ind = 0
-        if v_0 is None:
-            vu= v*a
-            #vu= v
-            delta_v = abs(vu)
-            ind = np.argmax(delta_v)
-            logging.info(f"delta_v[{ind}]: {delta_v[ind]}")
-            logging.info(f"delta_v avg: {np.average(delta_v)}")
-            v_0 = vu
-        else:
-            delta_v = abs(v-v_0)
-            vu = (v-v0)*a+v
-            #vu = v
-            ind = np.argmax(delta_v)
-            is_run = delta_v[ind] > accs["v"]
-            logging.info(f"delta_v[{ind}]: {delta_v[ind]}")
-            logging.info(f"delta_v avg: {np.average(delta_v)}")
-            v_0 = vu
-        logging.info(f"current a: {a}")
-        logging.debug(f"max_v: {np.max(v_0)} | {np.max(v)}")
-        logging.debug(f"min_v: {np.min(v_0)} | {np.min(v)}")
-        logging.debug(f"max_p: {np.max(p)}")
-        logging.debug(f"min_p: {np.min(p)}")
-        
-        f = open('dv.txt','a')
-        f.write(f"{itcnt} {outx[-1]} {delta_v[ind]}\n")
-        f.close()
+        #v_lst = []
+        #p_lst = []
+        #for i in range(treg):
+        #    for j in range(xreg):
+        #        ind = make_id(i, j, params)
+        #        pts = nodes(T_part[i],X_part[j])
+        #        cf = outx[ind*bsize:(ind+1)*bsize]
+        #        tv = mvmonoss(pts, ppwrs, 1, cff_cnt, [0, 0])
+        #        tp = mvmonoss(pts, ppwrs, 0, cff_cnt, [0, 0])
+        #        ttv = tv.dot(cf)
+        #        ttp = tp.dot(cf)
+        #        v_lst.append(ttv)
+        #        p_lst.append(ttp)
+        #v = np.hstack(v_lst)
+        #p = np.hstack(p_lst)
+        #ind = 0
+        #if v_0 is None:
+        #    vu= v*a
+        #    #vu= v
+        #    delta_v = abs(vu)
+        #    ind = np.argmax(delta_v)
+        #    logging.info(f"delta_v[{ind}]: {delta_v[ind]}")
+        #    logging.info(f"delta_v avg: {np.average(delta_v)}")
+        #    v_0 = vu
+        #else:
+        #    delta_v = abs(v-v_0)
+        #    vu = (v-v0)*a+v
+        #    #vu = v
+        #    ind = np.argmax(delta_v)
+        #    is_run = delta_v[ind] > accs["v"]
+        #    logging.info(f"delta_v[{ind}]: {delta_v[ind]}")
+        #    logging.info(f"delta_v avg: {np.average(delta_v)}")
+        #    v_0 = vu
+        #logging.info(f"current a: {a}")
+        #logging.debug(f"max_v: {np.max(v_0)} | {np.max(v)}")
+        #logging.debug(f"min_v: {np.min(v_0)} | {np.min(v)}")
+        #logging.debug(f"max_p: {np.max(p)}")
+        #logging.debug(f"min_p: {np.min(p)}")
+        #
+        #f = open('dv.txt','a')
+        #f.write(f"{itcnt} {outx[-1]} {delta_v[ind]}\n")
+        #f.close()
 
         t = time.time() - stime
         logging.debug("iter time {} seconds".format(t) )
