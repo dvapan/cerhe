@@ -33,11 +33,11 @@ max_poly_degree = 3
 ppr = 10                        # Точек на регион
 
 accs = {
-        "eq_cer_heat": 0.001,
-        "eq_cer_cool": 0.001,
-        "eq_gas_heat": 10,
-        "eq_gas_cool": 10,
-        "eq_sur_heat": 0.001,
-        "eq_sur_cool": 0.001,
-               "temp": 1,
+        "eq_cer_heat": 1,#0.001,
+        "eq_cer_cool": 1,#0.001,
+        "eq_gas_heat": 1,#10,
+        "eq_gas_cool": 1,#10,
+        "eq_sur_heat": 1,#0.001,
+        "eq_sur_cool": 1,#0.001,
+               "temp": 1,#1,
 }

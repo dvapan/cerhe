@@ -34,19 +34,17 @@ parser.add_argument("--xreg", default=1,type=int)
 parser.add_argument("--treg", default=1,type=int)
 parser.add_argument("--pprx", default=7,type=int)
 parser.add_argument("--pprt", default=7,type=int)
-parser.add_argument("--pscl", default=0.3,type=float)
-parser.add_argument("--vscl", default=1.1,type=float)
+parser.add_argument("--TBZscl", default=1,type=float)
+parser.add_argument("--TGZscl", default=1.3,type=float)
 args = parser.parse_args(sys.argv[1:])
 p = vars(args)
 xreg = args.xreg
 treg = args.treg
 pprx = args.pprx
 pprt = args.pprt
-pscl = args.pscl
-vscl = args.vscl
+TBZscl = args.TBZscl
+TGZscl = args.TGZscl
 
-psclm = 1-pscl
-psclp = 1+pscl
 
 totalx = xreg*pprx - xreg + 1
 totalt = treg*pprt - treg + 1
@@ -81,7 +79,7 @@ for pc in pcs:
     tgh,tch,tgc,tcc = get_pv(pc,in_pts,p)
     l1, = axs.plot(X, tgc, lw=2)
     lt.append(l1)
-axs.axis([0, length, TBZ, TGZ])
+axs.axis([0, length, TBZscl*TBZ, TGZscl*TGZ])
 
 axcolor = 'lightgoldenrodyellow'
 axtime = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor=axcolor)
@@ -97,8 +95,7 @@ def update(val):
     in_pts = np.vstack([tt.flatten(),xx.flatten()]).T
     for i,pc in enumerate(pcs):
         tgh,tch,tgc,tcc = get_pv(pc,in_pts,p)
-        print (tgh)
-        lt[i].set_ydata(tgh)
+        lt[i].set_ydata(tgc)
     fig.canvas.draw_idle()
 stime.on_changed(update)
 
