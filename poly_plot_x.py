@@ -31,6 +31,7 @@ def get_pv(pc, in_pts, R,params):
         utcc.append(np.sum(p3*tcc,axis=1))
     return utgh,utch,utgc,utcc
 
+
 parser = argparse.ArgumentParser()
 parser.add_argument("filenames", nargs='*')
 parser.add_argument("--xreg", default=1,type=int)
@@ -67,59 +68,59 @@ for filename in args.filenames:
     pcs.append(pc)
 
 
-X = np.arange(0, length, 0.01)
-T = np.array([0])
+X = np.array([0])
+T = np.arange(0, total_time, 0.01)
 R = np.linspace(0.01*rball, rball, 3)
 R = R[::-1]
 
-fig, axs = plt.subplots(1)
+fig, axs = plt.subplots(2)
 plt.subplots_adjust(left=0.1, bottom=0.25)
 
 tt,xx = np.meshgrid(T,X)
 in_pts = np.vstack([tt.flatten(),xx.flatten()]).T
-lt = []
-for pc in pcs:
+lh = []
+lc = []
+for i,pc in enumerate(pcs):
     tgh,tch,tgc,tcc = get_pv(pc,in_pts, R ,p)
-    l1, = axs.plot(X, tgh, lw=2)
-    lt.append([l1])
-    for i in range(len(R)):
-        l, = axs.plot(X, tch[i], lw=2)
-        lt[-1].append(l)
-axs.axis([0, length, TBZscl*TBZ, TGZscl*TGZ])
+    l1, = axs[0].plot(T, tgh, lw=2)
+    l2, = axs[1].plot(T, tgc, lw=2)
+    lh.append([l1])
+    lc.append([l2])
+    for j in range(len(R)):
+        lj1, = axs[0].plot(T, tch[j], lw=2)
+        lj2, = axs[1].plot(T, tcc[j], lw=2)
+        lh[-1].append(lj1)
+        lc[-1].append(lj2)
+axs[0].axis([0, total_time, TBZscl*TBZ, TGZscl*TGZ])
+axs[1].axis([0, total_time, TBZscl*TBZ, TGZscl*TGZ])
+
 
 axcolor = 'lightgoldenrodyellow'
 axtime = plt.axes([0.25, 0.1, 0.65, 0.03], facecolor=axcolor)
 
-stime = Slider(axtime, 'Time', 0, 2*total_time-0.001, valinit=0)
-
+spos = Slider(axtime, 'position', 0, length-0.0001, valinit=0)
 
 def update(val):
-    t = stime.val
-    flag = t//total_time
-    t = t % total_time
-    T = np.array([t])
+    x = spos.val
+    X = np.array([x])
 
     tt,xx = np.meshgrid(T,X)
     in_pts = np.vstack([tt.flatten(),xx.flatten()]).T
     for i,pc in enumerate(pcs):
         tgh,tch,tgc,tcc = get_pv(pc,in_pts, R ,p)
-        if flag:
-            lt[i][0].set_ydata(tgc)
-        else:
-            lt[i][0].set_ydata(tgh)
+        lh[i][0].set_ydata(tgh)
+        lc[i][0].set_ydata(tgc)
         for j in range(len(R)):
-            if flag:
-                lt[i][j+1].set_ydata(tcc[j])
-            else:
-                lt[i][j+1].set_ydata(tch[j])
+            lh[i][j+1].set_ydata(tch[j])
+            lc[i][j+1].set_ydata(tcc[j])
     fig.canvas.draw_idle()
-stime.on_changed(update)
+spos.on_changed(update)
 
 resetax = plt.axes([0.8, 0.025, 0.1, 0.04])
 button = Button(resetax, 'Reset', color=axcolor, hovercolor='0.975')
 
 def reset(event):
-    stime.reset()
+    spos.reset()
 button.on_clicked(reset)
 
 plt.show()
