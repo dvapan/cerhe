@@ -186,7 +186,6 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
     refine_vals = True
 
     v_old = None
-    print('start prepare')
     dtchdt = []
     dtchdr = []
     dtchdr2 = []
@@ -229,25 +228,6 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
             dtccdr2.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 3,
                 cff_cnt, [0, 0, 2]),ind,params)))
 
-            tgh.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 0,
-                cff_cnt),ind,params)))
-            dtghdt.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 0,
-                cff_cnt, [1, 0]),ind,params)))
-            dtghdx.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 0,
-                cff_cnt, [0, 1]),ind,params)))
-            tch.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 1,
-                cff_cnt),ind,params)))
-
-            tgc.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 2,
-                cff_cnt),ind,params)))
-            dtgcdt.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 2,
-                cff_cnt, [1, 0]),ind,params)))
-            dtgcdx.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 2,
-                cff_cnt, [0, 1]),ind,params)))
-            tcc.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 3,
-                cff_cnt),ind,params)))
-    print('end prepare')
-
     dtchdt = sps.vstack(dtchdt)
     dtchdr = sps.vstack(dtchdr)
     dtchdr2 = sps.vstack(dtchdr2)
@@ -257,17 +237,7 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
     dtccdr = sps.vstack(dtccdr)
     dtccdr2 = sps.vstack(dtccdr2)
 
-    tgh = sps.vstack(tgh)
-    dtghdt = sps.vstack(dtghdt)
-    dtghdx = sps.vstack(dtghdx)
-    tch = sps.vstack(tch)
 
-    tgc = sps.vstack(tgc)
-    dtgcdt = sps.vstack(dtgcdt)
-    dtgcdx = sps.vstack(dtgcdx)
-    tcc = sps.vstack(tcc)
-
-    num_points = tgh.shape[0]#totalt*totalx
     lmch = dtchdt
     a = cp.a(t_def)
     rmch = a * (dtchdr2 + 2/radius * dtchdr)
@@ -275,6 +245,58 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
     lmcc = dtccdt
     a = cp.a(t_def)
     rmcc = a * (dtccdr2 + 2/radius * dtccdr)
+
+    tgh = []
+    dtghdt = []
+    dtghdx = []
+    tch = []
+    dtchdr = []
+
+    tgc = []
+    dtgcdt = []
+    dtgcdx = []
+    tcc = []
+    dtccdr = []
+    for i in range(treg):
+        for j in range(xreg):
+            ind = make_id(i, j, params)
+            print(R[:1])
+            grid_base = T_part[i], X_part[j],R[:1]
+            pts = nodes(*grid_base)
+            tgh.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 0,
+                cff_cnt),ind,params)))
+            dtghdt.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 0,
+                cff_cnt, [1, 0]),ind,params)))
+            dtghdx.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 0,
+                cff_cnt, [0, 1]),ind,params)))
+            tch.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 1,
+                cff_cnt),ind,params)))
+            dtchdr.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 1,
+                cff_cnt, [0, 0, 1]),ind,params)))
+
+            tgc.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 2,
+                cff_cnt),ind,params)))
+            dtgcdt.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 2,
+                cff_cnt, [1, 0]),ind,params)))
+            dtgcdx.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 2,
+                cff_cnt, [0, 1]),ind,params)))
+            tcc.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 3,
+                cff_cnt),ind,params)))
+            dtccdr.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 3,
+                cff_cnt, [0, 0, 1]),ind,params)))
+    
+    tgh = sps.vstack(tgh)
+    dtghdt = sps.vstack(dtghdt)
+    dtghdx = sps.vstack(dtghdx)
+    tch = sps.vstack(tch)
+    dtchdr = sps.vstack(dtchdr)
+
+    tgc = sps.vstack(tgc)
+    dtgcdt = sps.vstack(dtgcdt)
+    dtgcdx = sps.vstack(dtgcdx)
+    tcc = sps.vstack(tcc)
+    dtccdr = sps.vstack(dtccdr)
+
     
     ALF, PO, CG, WG = gas_coefficients(t_def)
     lmgh = (tgh - tch) * ALF * surf_spec
@@ -302,26 +324,26 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
     monos_surc = lmsc - rmsc
 
 
-    rhsch = np.full(num_points, 0)
-    rhscc = np.full(num_points, 0)
-    rhsgh = np.full(num_points, 0)
-    rhsgc = np.full(num_points, 0)
-    rhssh = np.full(num_points, 0)
-    rhssc = np.full(num_points, 0)
+    rhsch = np.full(monos_cerh.shape[0], 0)
+    rhscc = np.full(monos_cerc.shape[0], 0)
+    rhsgh = np.full(monos_gash.shape[0], 0)
+    rhsgc = np.full(monos_gasc.shape[0], 0)
+    rhssh = np.full(monos_surh.shape[0], 0)
+    rhssc = np.full(monos_surc.shape[0], 0)
 
-    cffch = np.full(num_points, accs["eq_cer_heat"])
-    cffcc = np.full(num_points, accs["eq_cer_cool"])
-    cffgh = np.full(num_points, accs["eq_gas_heat"])
-    cffgc = np.full(num_points, accs["eq_gas_cool"])
-    cffsh = np.full(num_points, accs["eq_sur_heat"])
-    cffsc = np.full(num_points, accs["eq_sur_cool"])
+    cffch = np.full(monos_cerh.shape[0], accs["eq_cer_heat"])
+    cffcc = np.full(monos_cerc.shape[0], accs["eq_cer_cool"])
+    cffgh = np.full(monos_gash.shape[0], accs["eq_gas_heat"])
+    cffgc = np.full(monos_gasc.shape[0], accs["eq_gas_cool"])
+    cffsh = np.full(monos_surh.shape[0], accs["eq_sur_heat"])
+    cffsc = np.full(monos_surc.shape[0], accs["eq_sur_cool"])
 
-    ctch = np.full(num_points, "eq_cer_heat")
-    ctcc = np.full(num_points, "eq_cer_cool")
-    ctgh = np.full(num_points, "eq_gas_heat")
-    ctgc = np.full(num_points, "eq_gas_cool")
-    ctsh = np.full(num_points, "eq_sur_heat")
-    ctsc = np.full(num_points, "eq_sur_cool")
+    ctch = np.full(monos_cerh.shape[0], "eq_cer_heat")
+    ctcc = np.full(monos_cerc.shape[0], "eq_cer_cool")
+    ctgh = np.full(monos_gash.shape[0], "eq_gas_heat")
+    ctgc = np.full(monos_gasc.shape[0], "eq_gas_cool")
+    ctsh = np.full(monos_surh.shape[0], "eq_sur_heat")
+    ctsc = np.full(monos_surc.shape[0], "eq_sur_cool")
 
     lvals.append(lmch)
     lvals.append(lmcc)
@@ -408,29 +430,29 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
     for i in range(treg):
         for j in range(xreg):
             if i < treg - 1 or j < xreg - 1:
-                lm,rm, r, c, t = betw_blocks(ppwrs2, (i, j),(1,1), 0,
+                lm1,rm1, r1, c1, t1 = betw_blocks(ppwrs2, (i, j),(1,1), 0,
                         accs["temp"],params, X_part, T_part)
-                t = [f"{q}-{j}x{i}" for q in t]
-                m1 = sps.csr_matrix(lm - rm)
-                conditions.append((m1,r,c,t))
+                t1 = [f"{q}-{j}x{i}" for q in t1]
+                m1 = sps.csr_matrix(lm1 - rm1)
+                conditions.append((m1,r1,c1,t1))
 
-                lm,rm, r, c, t = betw_blocks(ppwrs3, (i, j),(1,1), 1,
+                lm2,rm2, r2, c2, t2 = betw_blocks(ppwrs3, (i, j),(1,1), 1,
                         accs["temp"], params, X_part, T_part, R)
-                t = [f"{q}-{j}x{i}" for q in t]
-                m2 = sps.csr_matrix(lm - rm)
-                conditions.append((m2,r,c,t))
+                t2 = [f"{q}-{j}x{i}" for q in t2]
+                m2 = sps.csr_matrix(lm2 - rm2)
+                conditions.append((m2,r2,c2,t2))
 
-                lm,rm, r, c, t = betw_blocks(ppwrs2, (i, j),(1,1), 2,
+                lm3,rm3, r3, c3, t3 = betw_blocks(ppwrs2, (i, j),(1,1), 2,
                         accs["temp"], params, X_part, T_part)
-                t = [f"{q}-{j}x{i}" for q in t]
-                m3 = sps.csr_matrix(lm - rm)
-                conditions.append((m3,r,c,t))
+                t3 = [f"{q}-{j}x{i}" for q in t3]
+                m3 = sps.csr_matrix(lm3 - rm3)
+                conditions.append((m3,r3,c3,t3))
 
-                lm,rm, r, c, t = betw_blocks(ppwrs3, (i, j),(1,1), 3,
+                lm4,rm4, r4, c4, t4 = betw_blocks(ppwrs3, (i, j),(1,1), 3,
                         accs["temp"], params, X_part, T_part, R)
-                t = [f"{q}-{j}x{i}" for q in t]
-                m4 = sps.csr_matrix(lm - rm)
-                conditions.append((m4,r,c,t))
+                t4 = [f"{q}-{j}x{i}" for q in t4]
+                m4 = sps.csr_matrix(lm4 - rm4)
+                conditions.append((m4,r4,c4,t4))
     for m, r, c, t in conditions:
         monos.append(m)
         rhs.append(r)
@@ -451,4 +473,4 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
 
     cnst_type = np.hstack(cnst_type)
 
-    return monos, rhs, cnst_type 
+    return monos, rhs, cnst_type

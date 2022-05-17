@@ -36,3 +36,10 @@ def a(TC):
 # Удельная масса керамики   | [кг/м]
 qmass_spec = vbckfill*rho_cer(293.15)
 
+if __name__ == "__main__":
+    tdef = 1000
+    print(f"Теплоемкость керамики: {ccer(tdef)}")
+    print(f"Плотность керамики: {rho_cer(tdef)}")
+    print(f"Теплопроводность керамики: {lam(tdef)}")
+    print(f"температуропроводность керамики: {a(tdef)}")
+    print(f"Удельная масса керамики {qmass_spec}")
