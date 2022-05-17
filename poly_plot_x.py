@@ -38,8 +38,8 @@ parser.add_argument("--xreg", default=1,type=int)
 parser.add_argument("--treg", default=1,type=int)
 parser.add_argument("--pprx", default=7,type=int)
 parser.add_argument("--pprt", default=7,type=int)
-parser.add_argument("--TBZscl", default=1,type=float)
-parser.add_argument("--TGZscl", default=1.3,type=float)
+parser.add_argument("--TBZscl", default=0.9,type=float)
+parser.add_argument("--TGZscl", default=1.1,type=float)
 args = parser.parse_args(sys.argv[1:])
 p = vars(args)
 xreg = args.xreg
@@ -69,7 +69,7 @@ for filename in args.filenames:
 
 
 X = np.array([0])
-T = np.arange(0, total_time, 0.01)
+T = np.arange(0, total_time, 0.1)
 R = np.linspace(0.01*rball, rball, 3)
 R = R[::-1]
 
