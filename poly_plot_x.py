@@ -18,15 +18,15 @@ def get_pv(pc, in_pts, R,params):
     cf = pc[pids]
     ht,cl = np.hsplit(cf,2)
     tgh,tch = ht[:,:psize2],ht[:,psize2:]
-    tgc,tcc = cl[:,:psize2],ht[:,psize2:]
+    tgc,tcc = cl[:,:psize2],cl[:,psize2:]
     p2 = mvmonos(in_pts, ppwrs2, [0, 0])
     utgh = np.sum(p2*tgh,axis=1)
     utgc = np.sum(p2*tgc,axis=1)
     utch = []
     utcc = []
     for r in R:
-        p3 = mvmonos(np.hstack([in_pts,np.full((len(in_pts),1),r)]),
-            ppwrs3, [0, 0, 0])
+        cpts = np.hstack([in_pts,np.full((len(in_pts),1),r)])
+        p3 = mvmonos(cpts, ppwrs3, [0, 0, 0])
         utch.append(np.sum(p3*tch,axis=1))
         utcc.append(np.sum(p3*tcc,axis=1))
     return utgh,utch,utgc,utcc
@@ -38,8 +38,8 @@ parser.add_argument("--xreg", default=1,type=int)
 parser.add_argument("--treg", default=1,type=int)
 parser.add_argument("--pprx", default=7,type=int)
 parser.add_argument("--pprt", default=7,type=int)
-parser.add_argument("--TBZscl", default=0.9,type=float)
-parser.add_argument("--TGZscl", default=1.1,type=float)
+parser.add_argument("--TBZscl", default=0.99,type=float)
+parser.add_argument("--TGZscl", default=1.01,type=float)
 args = parser.parse_args(sys.argv[1:])
 p = vars(args)
 xreg = args.xreg
@@ -70,10 +70,10 @@ for filename in args.filenames:
 
 X = np.array([0])
 T = np.arange(0, total_time, 0.1)
-R = np.linspace(0.01*rball, rball, 3)
+R = np.linspace(0.015*rball, rball, 6)
 R = R[::-1]
 
-fig, axs = plt.subplots(2)
+fig, axs = plt.subplots(1)
 plt.subplots_adjust(left=0.1, bottom=0.25)
 
 tt,xx = np.meshgrid(T,X)
@@ -82,17 +82,15 @@ lh = []
 lc = []
 for i,pc in enumerate(pcs):
     tgh,tch,tgc,tcc = get_pv(pc,in_pts, R ,p)
-    l1, = axs[0].plot(T, tgh, lw=2)
-    l2, = axs[1].plot(T, tgc, lw=2)
+    TT = np.hstack([T,T+T[-1],T+T[-1]*2,T+T[-1]*3])
+    vv = np.hstack([tgh,tgc,tgh,tgc])
+    l1, = axs.plot(TT, vv, lw=2)
     lh.append([l1])
-    lc.append([l2])
     for j in range(len(R)):
-        lj1, = axs[0].plot(T, tch[j], lw=2)
-        lj2, = axs[1].plot(T, tcc[j], lw=2)
+        vv2 = np.hstack([tch[j],tcc[j],tch[j],tcc[j]])
+        lj1, = axs.plot(TT, vv2, lw=2)
         lh[-1].append(lj1)
-        lc[-1].append(lj2)
-axs[0].axis([0, total_time, TBZscl*TBZ, TGZscl*TGZ])
-axs[1].axis([0, total_time, TBZscl*TBZ, TGZscl*TGZ])
+axs.axis([0, total_time*4, TBZscl*TBZ, TGZscl*TGZ])
 
 
 axcolor = 'lightgoldenrodyellow'
@@ -108,11 +106,11 @@ def update(val):
     in_pts = np.vstack([tt.flatten(),xx.flatten()]).T
     for i,pc in enumerate(pcs):
         tgh,tch,tgc,tcc = get_pv(pc,in_pts, R ,p)
-        lh[i][0].set_ydata(tgh)
-        lc[i][0].set_ydata(tgc)
+        vv = np.hstack([tgh,tgc,tgh,tgc])
+        lh[i][0].set_ydata(vv)
         for j in range(len(R)):
-            lh[i][j+1].set_ydata(tch[j])
-            lc[i][j+1].set_ydata(tcc[j])
+            vv2 = np.hstack([tch[j],tcc[j],tch[j],tcc[j]])
+            lh[i][j+1].set_ydata(vv2)
     fig.canvas.draw_idle()
 spos.on_changed(update)
 
@@ -123,4 +121,33 @@ def reset(event):
     spos.reset()
 button.on_clicked(reset)
 
+setaxs = plt.axes([0.7, 0.025, 0.1, 0.04])
+button1 = Button(setaxs, 'Scale', color=axcolor, hovercolor='0.975')
+
+def axsset(event):
+    x = spos.val
+    X = np.array([x])
+
+    tt,xx = np.meshgrid(T,X)
+    in_pts = np.vstack([tt.flatten(),xx.flatten()]).T
+    minv = []
+    maxv = []
+    for i,pc in enumerate(pcs):
+        tgh,tch,tgc,tcc = get_pv(pc,in_pts, R ,p)
+        maxv.append(np.max(np.hstack([tgh.flatten(), np.array(tch).flatten(),
+                                tgc.flatten(), np.array(tcc).flatten()])))
+        minv.append(np.min(np.hstack([tgh.flatten(), np.array(tch).flatten(),
+                                tgc.flatten(), np.array(tcc).flatten()])))
+    mina = np.min(np.array(minv))
+    maxa = np.max(np.array(maxv))
+    axs.axis([0, total_time*4, TBZscl*mina, TGZscl*maxa])
+    fig.canvas.draw_idle()
+button1.on_clicked(axsset)
+
+setaxs_def = plt.axes([0.6, 0.025, 0.1, 0.04])
+button2 = Button(setaxs_def, 'Def Scale', color=axcolor, hovercolor='0.975')
+
+def axsset_def(event):
+    axs.axis([0, total_time*4, TBZscl*TBZ, TGZscl*TGZ])
+button2.on_clicked(axsset_def)
 plt.show()
