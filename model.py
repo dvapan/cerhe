@@ -81,17 +81,17 @@ def boundary_revert(ind1, bnd1, ind2, bnd2, eps,params, *grid_base):
     sb_pts_t1 = nodes(bnd2, *grid_base)
     lv = []
     rv = []
-    tch1 = mvmonoss(sb_pts_t0, powers(3, 3), 1, cff_cnt)
-    tch1 = shifted(tch1, ind1,params)
-    tcc1 = mvmonoss(sb_pts_t1, powers(3, 3), 3, cff_cnt)
-    tcc1 = shifted(tcc1, ind2,params)
+    mtch1 = mvmonoss(sb_pts_t0, powers(3, 3), 1, cff_cnt)
+    tch1 = shifted(mtch1, ind1,params)
+    mtcc1 = mvmonoss(sb_pts_t1, powers(3, 3), 3, cff_cnt)
+    tcc1 = shifted(mtcc1, ind2,params)
     lv.append(tch1)
     rv.append(tcc1)
 
-    tcc2 = mvmonoss(sb_pts_t0, powers(3, 3), 3, cff_cnt)
-    tcc2 = shifted(tcc2, ind1, params)
-    tch2 = mvmonoss(sb_pts_t1, powers(3, 3), 1, cff_cnt)
-    tch2 = shifted(tch2, ind2, params)
+    mtcc2 = mvmonoss(sb_pts_t0, powers(3, 3), 3, cff_cnt)
+    tcc2 = shifted(mtcc2, ind1, params)
+    mtch2 = mvmonoss(sb_pts_t1, powers(3, 3), 1, cff_cnt)
+    tch2 = shifted(mtch2, ind2, params)
     lv.append(tcc2)
     rv.append(tch2)
 
@@ -106,62 +106,63 @@ def betw_blocks(pws, gind,dind, pind, eps, params, X_part, T_part, R=None):
     treg = params["treg"]
     i, j = gind
     di,dj = dind
-    if di > 0:
-        Ti1 = -1
-        Ti2 = 0
-    else:
-        Ti1 = 0
-        Ti2 = -1
     ind = make_id(i, j, params)
     lv = []
     rv = []
-    
-    if R is None:
-        grid_base = T_part[i][Ti1], X_part[j]
-    else:
-        grid_base = T_part[i][Ti1], X_part[j],R
-    ptr_bnd = nodes(*grid_base)
-    val = mvmonoss(ptr_bnd, pws, pind, cff_cnt)
-    val = shifted(val, ind, params)
-    rv.append(val)
+    if di != 0:
+        if di > 0:
+            Ti1 = -1
+            Ti2 = 0
+        else:
+            Ti1 = 0
+            Ti2 = -1
+        
+        if R is None:
+            grid_base = T_part[i][Ti1], X_part[j]
+        else:
+            grid_base = T_part[i][Ti1], X_part[j],R
+        ptr_bnd = nodes(*grid_base)
+        val = mvmonoss(ptr_bnd, pws, pind, cff_cnt)
+        val = shifted(val, ind, params)
+        lv.append(val)
 
-    ni, nj = i+di, j
-    indn = make_id(ni, nj, params)
-    if R is None:
-        grid_basen = T_part[ni][Ti2], X_part[nj]
-    else:
-        grid_basen = T_part[ni][Ti2], X_part[nj], R
-    ptr_bndn = nodes(*grid_basen)
-    valn = mvmonoss(ptr_bndn, pws, pind, cff_cnt)
-    valn = shifted(valn, indn, params)
-    lv.append(valn)
+        ni, nj = i+di, j
+        indn = make_id(ni, nj, params)
+        if R is None:
+            grid_basen = T_part[ni][Ti2], X_part[nj]
+        else:
+            grid_basen = T_part[ni][Ti2], X_part[nj], R
+        ptr_bndn = nodes(*grid_basen)
+        valn = mvmonoss(ptr_bndn, pws, pind, cff_cnt)
+        valn = shifted(valn, indn, params)
+        rv.append(valn)
+    if dj != 0:
+        if dj > 0:
+            Tj1 = -1
+            Tj2 = 0
+        else:
+            Tj1 = 0
+            Tj2 = -1
+        if R is None:
+            grid_base = T_part[i], X_part[j][Tj1]
+        else:
+            grid_base = T_part[i], X_part[j][Tj1],R
+        ptr_bnd = nodes(*grid_base)
+        val = mvmonoss(ptr_bnd, pws, pind, cff_cnt)
+        val = shifted(val, ind, params)
+        lv.append(val)
 
-    if dj > 0:
-        Tj1 = -1
-        Tj2 = 0
-    else:
-        Tj1 = 0
-        Tj2 = -1
-    if R is None:
-        grid_base = T_part[i], X_part[j][Tj1]
-    else:
-        grid_base = T_part[i], X_part[j][Tj1],R
-    ptr_bnd = nodes(*grid_base)
-    val = mvmonoss(ptr_bnd, pws, pind, cff_cnt)
-    val = shifted(val, ind, params)
-    rv.append(val)
+        ni, nj = i, j+dj
+        indn = make_id(ni, nj, params)
+        if R is None:
+            grid_basen = T_part[ni], X_part[nj][Tj2]
+        else:
+            grid_basen = T_part[ni], X_part[nj][Tj2], R
 
-    ni, nj = i, j+dj
-    indn = make_id(ni, nj, params)
-    if R is None:
-        grid_basen = T_part[ni], X_part[nj][Tj2]
-    else:
-        grid_basen = T_part[ni], X_part[nj][Tj2], R
-
-    ptr_bndn = nodes(*grid_basen)
-    valn = mvmonoss(ptr_bndn, pws, pind, cff_cnt)
-    valn = shifted(valn, indn, params)
-    lv.append(valn)
+        ptr_bndn = nodes(*grid_basen)
+        valn = mvmonoss(ptr_bndn, pws, pind, cff_cnt)
+        valn = shifted(valn, indn, params)
+        rv.append(valn)
 
     lv = np.vstack(lv)
     rv = np.vstack(rv)
@@ -186,6 +187,7 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
     X = np.linspace(0, length, totalx)
     T = np.linspace(0, total_time, totalt)
     R = np.linspace(0.01*rball, rball, 10)
+    print(R)
     R = R[::-1]
     X_part = list(mit.windowed(X,n=pprx,step=pprx - 1))
     T_part = list(mit.windowed(T,n=pprt,step=pprt - 1))
@@ -220,20 +222,27 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
             grid_base = T_part[i], X_part[j],R
             pts = nodes(*grid_base)
             
-            dtchdt.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 1,
-                cff_cnt, [1, 0, 0]),ind,params)))
-            dtchdr.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 1,
-                cff_cnt, [0, 0, 1]),ind,params)))
-            dtchdr2.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 1,
-                cff_cnt, [0, 0, 2]),ind,params)))
+            p1 = mvmonoss(pts, powers(3, 3), 1, cff_cnt, [1, 0, 0])
+            sp1 = shifted(p1,ind,params)
+            dtchdt.append(sps.csr_matrix(sp1))
+            p2 = mvmonoss(pts, powers(3, 3), 1, cff_cnt, [0, 0, 1])
+            sp2 = shifted(p2,ind,params)
+            dtchdr.append(sps.csr_matrix(sp2))
+            p3 = mvmonoss(pts, powers(3, 3), 1, cff_cnt, [0, 0, 2])
+            sp3 = shifted(p3,ind,params)
+            dtchdr2.append(sps.csr_matrix(sp3))
+
             radius.append(pts[:,-1])
             
-            dtccdt.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 3,
-                cff_cnt, [1, 0, 0]),ind,params)))
-            dtccdr.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 3,
-                cff_cnt, [0, 0, 1]),ind,params)))
-            dtccdr2.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 3,
-                cff_cnt, [0, 0, 2]),ind,params)))
+            p4 = mvmonoss(pts, powers(3, 3), 3, cff_cnt, [1, 0, 0])
+            sp4 = shifted(p4,ind,params)
+            dtccdt.append(sps.csr_matrix(sp4))
+            p5 = mvmonoss(pts, powers(3, 3), 3, cff_cnt, [0, 0, 1])
+            sp5 = shifted(p5,ind,params)
+            dtccdr.append(sps.csr_matrix(sp5))
+            p6 = mvmonoss(pts, powers(3, 3), 3, cff_cnt, [0, 0, 2])
+            sp6 = shifted(p6,ind,params)
+            dtccdr2.append(sps.csr_matrix(sp6))
 
     dtchdt = sps.vstack(dtchdt)
     dtchdr = sps.vstack(dtchdr)
@@ -269,27 +278,37 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
             ind = make_id(i, j, params)
             grid_base = T_part[i], X_part[j],R[:1]
             pts = nodes(*grid_base)
-            tgh.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 0,
-                cff_cnt),ind,params)))
-            dtghdt.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 0,
-                cff_cnt, [1, 0]),ind,params)))
-            dtghdx.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 0,
-                cff_cnt, [0, 1]),ind,params)))
-            tch.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 1,
-                cff_cnt),ind,params)))
-            dtchdr.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 1,
-                cff_cnt, [0, 0, 1]),ind,params)))
 
-            tgc.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 2,
-                cff_cnt),ind,params)))
-            dtgcdt.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 2,
-                cff_cnt, [1, 0]),ind,params)))
-            dtgcdx.append(sps.csr_matrix(shifted(mvmonoss(pts[:, :-1], powers(3, 2), 2,
-                cff_cnt, [0, 1]),ind,params)))
-            tcc.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 3,
-                cff_cnt),ind,params)))
-            dtccdr.append(sps.csr_matrix(shifted(mvmonoss(pts, powers(3, 3), 3,
-                cff_cnt, [0, 0, 1]),ind,params)))
+            p1 = mvmonoss(pts[:, :-1], powers(3, 2), 0, cff_cnt)
+            sp1 = shifted(p1,ind,params)
+            tgh.append(sps.csr_matrix(sp1))
+            p2 = mvmonoss(pts[:, :-1], powers(3, 2), 0, cff_cnt, [1, 0]) 
+            sp2 = shifted(p2,ind,params)
+            dtghdt.append(sps.csr_matrix(sp2))
+            p3 = mvmonoss(pts[:, :-1], powers(3, 2), 0, cff_cnt, [0, 1])
+            sp3 = shifted(p3,ind,params)
+            dtghdx.append(sps.csr_matrix(sp3))
+            p4 = mvmonoss(pts, powers(3, 3), 1, cff_cnt)
+            sp4 = shifted(p4,ind,params)
+            tch.append(sps.csr_matrix(sp4))
+            p5 = mvmonoss(pts, powers(3, 3), 1, cff_cnt, [0, 0, 1])
+            sp5 = shifted(p5,ind,params)
+            dtchdr.append(sps.csr_matrix(sp5))
+            p6 = mvmonoss(pts[:, :-1], powers(3, 2), 2, cff_cnt)
+            sp6 = shifted(p6,ind,params)
+            tgc.append(sps.csr_matrix(sp6))
+            p7 = mvmonoss(pts[:, :-1], powers(3, 2), 2, cff_cnt, [1, 0])
+            sp7 = shifted(p7, ind, params)
+            dtgcdt.append(sps.csr_matrix(sp7))
+            p8 = mvmonoss(pts[:, :-1], powers(3, 2), 2, cff_cnt, [0, 1])
+            sp8 = shifted(p8,ind,params)
+            dtgcdx.append(sps.csr_matrix(sp8))
+            p9 = mvmonoss(pts, powers(3, 3), 3, cff_cnt)
+            sp9 = shifted(p9,ind,params)
+            tcc.append(sps.csr_matrix(sp9))
+            p10 = mvmonoss(pts, powers(3, 3), 3, cff_cnt, [0, 0, 1])
+            sp10 = shifted(p10,ind,params)
+            dtccdr.append(sps.csr_matrix(sp10))
     
     tgh = sps.vstack(tgh)
     dtghdt = sps.vstack(dtghdt)
@@ -400,6 +419,8 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
                 T_part[i],X_part[0][0])
         lm = sps.csr_matrix(shifted(lm, ind, params))
         rm = sps.csr_matrix(shifted(rm, ind, params))
+        lvals.append(lm)
+        rvals.append(rm)
         m = lm - rm
         monos.append(m)
         rhs.append(r)
@@ -412,6 +433,8 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
                 T_part[i], X_part[xreg-1][-1])
         lm = sps.csr_matrix(shifted(lm, ind, params))
         rm = sps.csr_matrix(shifted(rm, ind, params))
+        lvals.append(lm)
+        rvals.append(rm)
         m = lm - rm
         monos.append(m)
         rhs.append(r)
@@ -422,11 +445,13 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
         ind1 = make_id(0, j, params)
         ind2 = make_id(treg-1, j, params)
         lm,rm,r,c,t = boundary_revert(ind1,T_part[0][0],
-                ind2, T_part[treg - 1][-1],accs["temp"],params,
+                ind2, T_part[treg - 1][-1],accs["temp_cer"],params,
                 X_part[j],R)
-        lm = sps.csr_matrix(lm)
-        rm = sps.csr_matrix(rm)
-        m = lm - rm
+        lmm = sps.csr_matrix(lm)
+        rmm = sps.csr_matrix(rm)
+        lvals.append(lmm)
+        rvals.append(rmm)
+        m = lmm - rmm
         monos.append(m)
         rhs.append(r)
         cff.append(c)
@@ -438,24 +463,96 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
             lm1,rm1, r1, c1, t1 = betw_blocks(ppwrs2, (i, j),(1,1), 0,
                     accs["temp"],params, X_part, T_part)
             t1 = [f"{q}-{j}x{i}" for q in t1]
+            lvals.append(lm1)
+            rvals.append(rm1)
             m1 = sps.csr_matrix(lm1 - rm1)
             conditions.append((m1,r1,c1,t1))
 
             lm2,rm2, r2, c2, t2 = betw_blocks(ppwrs3, (i, j),(1,1), 1,
                     accs["temp"], params, X_part, T_part, R)
             t2 = [f"{q}-{j}x{i}" for q in t2]
+            lvals.append(lm2)
+            rvals.append(rm2)
             m2 = sps.csr_matrix(lm2 - rm2)
             conditions.append((m2,r2,c2,t2))
             lm3,rm3, r3, c3, t3 = betw_blocks(ppwrs2, (i, j),(1,1), 2,
                     accs["temp"], params, X_part, T_part)
             t3 = [f"{q}-{j}x{i}" for q in t3]
+            lvals.append(lm3)
+            rvals.append(rm3)
             m3 = sps.csr_matrix(lm3 - rm3)
             conditions.append((m3,r3,c3,t3))
             lm4,rm4, r4, c4, t4 = betw_blocks(ppwrs3, (i, j),(1,1), 3,
                     accs["temp"], params, X_part, T_part, R)
             t4 = [f"{q}-{j}x{i}" for q in t4]
+            lvals.append(lm4)
+            rvals.append(rm4)
             m4 = sps.csr_matrix(lm4 - rm4)
             conditions.append((m4,r4,c4,t4))
+    for i in range(treg - 1):
+        lm1,rm1, r1, c1, t1 = betw_blocks(ppwrs2, (i, xreg - 1),(1,0), 0,
+                accs["temp"],params, X_part, T_part)
+        t1 = [f"{q}-{j}x{i}" for q in t1]
+        lvals.append(lm1)
+        rvals.append(rm1)
+        m1 = sps.csr_matrix(lm1 - rm1)
+        conditions.append((m1,r1,c1,t1))
+
+        lm2,rm2, r2, c2, t2 = betw_blocks(ppwrs3, (i, xreg - 1),(1,0), 1,
+                accs["temp"], params, X_part, T_part, R)
+        t2 = [f"{q}-{j}x{i}" for q in t2]
+        lvals.append(lm2)
+        rvals.append(rm2)
+        m2 = sps.csr_matrix(lm2 - rm2)
+        conditions.append((m2,r2,c2,t2))
+        lm3,rm3, r3, c3, t3 = betw_blocks(ppwrs2, (i, xreg - 1),(1,0), 2,
+                accs["temp"], params, X_part, T_part)
+        t3 = [f"{q}-{j}x{i}" for q in t3]
+        lvals.append(lm3)
+        rvals.append(rm3)
+        m3 = sps.csr_matrix(lm3 - rm3)
+        conditions.append((m3,r3,c3,t3))
+        lm4,rm4, r4, c4, t4 = betw_blocks(ppwrs3, (i, xreg - 1),(1,0), 3,
+                accs["temp"], params, X_part, T_part, R)
+        t4 = [f"{q}-{j}x{i}" for q in t4]
+        lvals.append(lm4)
+        rvals.append(rm4)
+        m4 = sps.csr_matrix(lm4 - rm4)
+        conditions.append((m4,r4,c4,t4))
+
+
+    for j in range(xreg - 1):
+        lm1,rm1, r1, c1, t1 = betw_blocks(ppwrs2, (treg - 1, j),(0,1), 0,
+                accs["temp"],params, X_part, T_part)
+        t1 = [f"{q}-{j}x{i}" for q in t1]
+        lvals.append(lm1)
+        rvals.append(rm1)
+        m1 = sps.csr_matrix(lm1 - rm1)
+        conditions.append((m1,r1,c1,t1))
+
+        lm2,rm2, r2, c2, t2 = betw_blocks(ppwrs3, (treg - 1, j),(0,1), 1,
+                accs["temp"], params, X_part, T_part, R)
+        t2 = [f"{q}-{j}x{i}" for q in t2]
+        lvals.append(lm2)
+        rvals.append(rm2)
+        m2 = sps.csr_matrix(lm2 - rm2)
+        conditions.append((m2,r2,c2,t2))
+        lm3,rm3, r3, c3, t3 = betw_blocks(ppwrs2, (treg - 1, j),(0,1), 2,
+                accs["temp"], params, X_part, T_part)
+        t3 = [f"{q}-{j}x{i}" for q in t3]
+        lvals.append(lm3)
+        rvals.append(rm3)
+        m3 = sps.csr_matrix(lm3 - rm3)
+        conditions.append((m3,r3,c3,t3))
+        lm4,rm4, r4, c4, t4 = betw_blocks(ppwrs3, (treg - 1, j),(0,1), 3,
+                accs["temp"], params, X_part, T_part, R)
+        t4 = [f"{q}-{j}x{i}" for q in t4]
+        lvals.append(lm4)
+        rvals.append(rm4)
+        m4 = sps.csr_matrix(lm4 - rm4)
+        conditions.append((m4,r4,c4,t4))
+
+
     for m, r, c, t in conditions:
         monos.append(m)
         rhs.append(r)
@@ -476,4 +573,4 @@ def count_points(params, v_0=None, cff0=None, a=None, sqp0=None,
 
     cnst_type = np.hstack(cnst_type)
 
-    return monos, rhs, cnst_type
+    return monos, rhs, cnst_type, lvals, rvals

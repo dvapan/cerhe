@@ -42,7 +42,7 @@ def count(params, eps=0.01):
         stime = time.time()
         sdcf = None
         refit = 0
-        monos, rhs, ct, = count_points(params)
+        monos, rhs, ct, *_ = count_points(params)
         ct = np.hstack([ct,ct])
         if cff_old is None:
             cff_old = np.copy(cff)
